@@ -11,15 +11,16 @@ Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org).
 
 ## Code layout
 
-- `ccc/__main__.py`: `load(lines) -> dict` parses an input file into `{"boards": [Board, ...]}`: a count line, then per board an `r rows cols` header and its rows, with blank lines between boards. The user wants its main loop **left as is**. That loop still expects `levelN_M.in` (and so does `ccc/utils.py`), so `python -m ccc` finds nothing for this contest's files. Generate the outputs with the one-off command below instead.
-- `ccc/contest.py`: `solve(data, rule=<current level>) -> str` is the solution. It applies one per-level rule `Board -> Board` to each board, then joins the boards with `"\n\n"` and no trailing newline.
-  - Old levels stay solvable: keep each level's rule (`fire2`, `fire3`, ...) and add a new `fireN`, rather than editing the old one. Then point `solve`'s default at the new rule.
+- `ccc/__main__.py`: `load(lines) -> dict` parses an input file into `{"items": [...]}`: a count line, then N items with blank lines between them. The shape of each item's header line picks the format: `r rows cols` plus the rows gives a `Board` (L2, L3); a lone `r` gives a `Program` `(r, ticks)` (L4). A new input format means a new branch there. The user wants the main loop **left as is**. That loop still expects `levelN_M.in` (and so does `ccc/utils.py`), so `python -m ccc` finds nothing for this contest's files. Use `ccc.run` instead.
+- `ccc/contest.py`: `solve(data, level=None) -> str` is the solution. It applies the level's rule (one input item -> final `Board`) to each item, renders each result, and joins them with `"\n\n"` and no trailing newline. `level=None` means the latest level.
+  - **New level = new rule function (`fireN`, `runN`, ...) + one entry in `RULES = {level: rule}`** at the bottom of the file. Keep old rules as they are, so old levels stay solvable and tested. Reuse the building blocks (`ray`, `beam_hits`, ...), and split one out when a new level needs part of an old rule.
   - `Board = dict[(row, col), char]`, keyed by ASCII position with the `-` gaps left out ("doubled-width" coordinates; chosen over axial, numpy, or the raw grid).
-  - `parse` / `render` convert to and from the ASCII rows. `ray(board, start, digit)` yields the cells a beam crosses (through `O`/`M`) until the border. `beam_hits(board)` counts the beams over each cell for all emitters together. `hexagon(r)` draws an empty board (L1).
+  - `parse` / `render` convert to and from the ASCII rows. `ray(board, start, digit)` yields the cells a beam crosses (through `O`/`M`) until the border. `hits(board, emitters)` counts the beams over each cell (`beam_hits` does it for the emitters drawn on the board), `create_or_destroy` applies the 2 / 3+ rule, and `ring(r)` lists the border cells clockwise from the west corner. `run_ticks(board, r, ticks)` runs a moving-emitter program on any board (`run4` calls it on an empty hexagon). `hexagon(r)` draws an empty board (L1).
   - `DIRS`: emitter digit -> step, `1=(0,2)` →, `2=(1,1)` ↘, `3=(1,-1)` ↙, `4=(0,-2)` ←, `5=(-1,-1)` ↖, `6=(-1,1)` ↗. Clockwise, so turning is index arithmetic mod 6.
-  - Only `parse`, `render`, `DIRS` and `ray` touch raw coordinates. Everything else treats cells as opaque keys (`cell in board`, a `Counter`), so a switch to axial coordinates only changes those four.
+  - Only `parse`, `render`, `DIRS`, `ray`, `hexagon` and `ring` touch raw coordinates. Everything else treats cells as opaque keys (`cell in board`, a `Counter`), so a switch to axial coordinates only changes those.
+- `ccc/run.py`: `uv run python -m ccc.run [N]` (default: the latest level in `RULES`). It checks the example against `out_level-N_0-example.txt` (and exits if it doesn't match), then writes `out_level-N_*.txt` for the real inputs.
 - `ccc/utils.py`: infers the level and quests from `levelN_M.in` filenames (doesn't match this contest's naming).
-- Tests: `ccc/contest_test.py`. Register each new level in `RULES = {level: rule}`. `test_outputs` then checks every `out_level-N_*.txt` that exists (the example and the confirmed uploads) against `solve(load(in), RULES[N])`, so old levels can't silently regress. `test_load` round-trips every input board. Add a small hand-traced rule test per level on `hexagon(2)` (the `small()` helper).
+- Tests: `ccc/contest_test.py`. Once a level is in `RULES`, `test_outputs` checks every `out_level-N_*.txt` that exists (the example and the confirmed uploads) against `solve(load(in), N)`, so old levels can't silently regress. `test_load_boards` round-trips every input board (add a level to `BOARD_LEVELS` if its items are boards). Add a small hand-traced rule test per level on `hexagon(2)` (the `small()` helper).
 - `ccc/scratchpad.ipynb`: notebook for exploring.
 
 ## Levels so far
@@ -27,6 +28,7 @@ Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org).
 - L1: draw a hexagon board of radius r.
 - L2: one emitter, its beam turns `O` into `M` until the border.
 - L3: multiple emitters. A cell hit by 2 beams becomes `M`, 3+ hits destroy it, 0-1 hits leave it unchanged. The output may keep the emitter digits.
+- L4: input is programs, not boards (`r`, tick count, ticks of 6 commands `F`/`B`/`T`/`-`). The six emitters start off on the corners (emitter d at `ring(r)[(d-1)*r]`) and move along the border; each tick, all commands apply at once, then the active emitters fire with the L3 rule. Emitters are kept off the board dict, because they can share a cell. Output is rendered without emitters.
 
 ## Commands
 
@@ -36,17 +38,10 @@ uv run --with pytest pytest ccc -q   # tests (pytest is not a project dep)
 uv run ruff format && uv run ruff check --select I --fix
 ```
 
-Write the outputs for level N (skips the example so its expected output stays intact):
+Write the outputs for level N (it checks the example first):
 
 ```sh
-uv run python -c "
-from pathlib import Path
-from ccc.__main__ import load
-from ccc.contest import solve
-for f in Path('data').glob('in_level-N_*.txt'):
-    if 'example' not in f.name:
-        f.with_name(f.name.replace('in_', 'out_', 1)).write_text(solve(load(f.read_text().splitlines())))
-"
+uv run python -m ccc.run [N]
 ```
 
 Write or edit Python files with the Write/Edit tools, not Python heredocs in Bash: on this Windows machine, `\n` escapes in a heredoc came out as literal newlines with CRLF.

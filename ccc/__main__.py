@@ -1,23 +1,34 @@
 from pathlib import Path
 from pprint import pprint
+from typing import Any
 
 from loguru import logger as log
 
-from .contest import Board, parse, solve
+from .contest import parse, solve
 from .utils import infer_current_level, infer_quests_for_level
 
 
-def load(lines: list[str]) -> dict[str, list[Board]]:
+def load(lines: list[str]) -> dict[str, list[Any]]:
+    """N items, separated by blank lines; the header line's shape picks the format"""
     n = int(lines[0])
-    boards: list[Board] = []
+    items: list[Any] = []
     i = 1
     for _ in range(n):
         while not lines[i].strip():
             i += 1
-        _r, rows, _cols = map(int, lines[i].split())
-        boards.append(parse(lines[i + 1 : i + 1 + rows]))
-        i += 1 + rows
-    return dict(boards=boards)
+        header = lines[i].split()
+        if len(header) == 3:  # L2+: "r rows cols" + board rows
+            rows = int(header[1])
+            items.append(parse(lines[i + 1 : i + 1 + rows]))
+            i += 1 + rows
+        elif len(header) == 1:  # L4: "r", tick count, ticks of 6 commands
+            r, n_ticks = int(header[0]), int(lines[i + 1])
+            ticks = [line.split() for line in lines[i + 2 : i + 2 + n_ticks]]
+            items.append((r, ticks))
+            i += 2 + n_ticks
+        else:
+            raise ValueError(f"unknown item header: {lines[i]!r}")
+    return dict(items=items)
 
 
 if __name__ == "__main__":

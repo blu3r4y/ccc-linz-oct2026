@@ -3,13 +3,14 @@ from pathlib import Path
 import pytest
 
 from .__main__ import load
-from .contest import DIRS, fire2, fire3, hexagon, parse, ray, render, solve
+from .contest import DIRS, RULES, fire3, hexagon, parse, ray, render, ring, run4, solve
 
 DATA = Path(__file__).parent.parent / "data"
 
-# level -> rule; add each new level here, its example is then checked automatically
-RULES = {2: fire2, 3: fire3}
-INPUTS = sorted(p.name for lvl in RULES for p in DATA.glob(f"in_level-{lvl}_*.txt"))
+BOARD_LEVELS = (2, 3)  # levels whose input items are boards
+BOARD_INPUTS = sorted(
+    p.name for lvl in BOARD_LEVELS for p in DATA.glob(f"in_level-{lvl}_*.txt")
+)
 OUTPUTS = sorted(  # every output that exists, uploaded and confirmed (or the example)
     (lvl, p.name.replace("out_", "in_", 1))
     for lvl in RULES
@@ -49,12 +50,12 @@ def test_level1_example():
 def test_outputs(level: int, name: str):
     data = load(read(name).splitlines())
     expected = read(name.replace("in_", "out_", 1)).strip()
-    assert solve(data, RULES[level]) == expected
+    assert solve(data, level) == expected
 
 
-@pytest.mark.parametrize("name", INPUTS)
-def test_load(name: str):
-    boards = load(read(name).splitlines())["boards"]
+@pytest.mark.parametrize("name", BOARD_INPUTS)
+def test_load_boards(name: str):
+    boards = load(read(name).splitlines())["items"]
     assert len(boards) == int(read(name).split()[0]) == len(blocks(name))
     for rows, b in zip(blocks(name), boards):
         assert render(b) == "\n".join(rows)
@@ -108,3 +109,54 @@ def test_fire3_rules():
     assert b[(3, 5)] == b[(3, 3)] == "M"  # 2 hits create
     assert b[(2, 2)] == b[(1, 3)] == "O"  # 1 hit, unchanged
     assert b[(2, 6)] == "M"  # 1 hit, existing matter stays
+
+
+@pytest.mark.parametrize("r", [2, 3, 7])
+def test_ring(r: int):
+    cells = ring(r)
+    board = parse(hexagon(r).splitlines())
+    assert len(cells) == len(set(cells)) == 6 * r
+    assert all(board[c] == "*" for c in cells)
+    corners = [(r, 0), (0, r), (0, 3 * r), (r, 4 * r), (2 * r, 3 * r), (2 * r, r)]
+    assert [cells[k * r] for k in range(6)] == corners  # emitter starts, 1..6
+
+
+def program(*ticks: str) -> list[list[str]]:
+    return [t.split() for t in ticks]
+
+
+def test_run4_toggle_and_shared_cell():
+    # ring(2): 0 (2,0) 1 (1,1) 2 (0,2) ... 10 (4,2) 11 (3,1)
+    b = run4(
+        (
+            2,
+            program(
+                "T T - - - -",  # 1 → and 2 ↘ meet at (2,4): M
+                "- - T - - -",  # + 3 ↙: 3 hits at (2,4) destroy it again
+                # 1 and 2 both move to (1,1) before firing, 3 off, 6 ↗ on:
+                # 1 → (1,3) (1,5), 2 ↘ (2,2) (3,3), 6 ↗ (3,3) (2,4) (1,5)
+                "F B T - - T",
+            ),
+        )
+    )
+    assert render(b) == render(small(((3, 3), "M"), ((1, 5), "M")))
+
+
+def test_run4_wraps_around():
+    b = run4(
+        (
+            2,
+            program(
+                "B T - - - -",  # 1 back to index 11 (3,1), 2 ↘ on
+                "T - - - - -",  # 1 → (3,3) (3,5) meets 2 ↘ at (3,5)
+                "F - - - - -",  # 1 forward to index 0 (2,0), meets 2 at (2,4)
+            ),
+        )
+    )
+    assert render(b) == render(small(((3, 5), "M"), ((2, 4), "M")))
+
+
+def test_load_level4():
+    items = load(read("in_level-4_0-example.txt").splitlines())["items"]
+    assert [(r, len(ticks)) for r, ticks in items] == [(2, 3), (3, 6), (3, 6)]
+    assert all(len(t) == 6 for _, ticks in items for t in ticks)
