@@ -2,6 +2,8 @@
 
 Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org). Time-boxed contest: speed over polish.
 
+**Level 6 is in progress as an optimisation effort:** read `SESSION.md` first. It covers the current best scores, where the best outputs live, the remote compute boxes, running agents, lessons learned and the agreed final pass.
+
 ## Contest format
 
 - Levels 1..N unlock one after another. Each level has a spec PDF, an example input with its expected output, and the real inputs, which get uploaded for scoring.

@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nano Fabricator Code Guide</title>
+<style>
+  :root {
+    --bg: #fbfaf7;
+    --fg: #1d1d1b;
+    --muted: #66645e;
+    --rule: #dedbd2;
+    --code-bg: #f1eee6;
+    --accent: #9a3b12;
+    --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, Menlo, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --fg: #e6e4de;
+      --muted: #9b998f;
+      --rule: #34363a;
+      --code-bg: #212327;
+      --accent: #f0a070;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 {
+    font-size: 1.15rem; margin: 40px 0 10px; padding-top: 12px;
+    border-top: 1px solid var(--rule);
+  }
+  h2 span { color: var(--accent); font-family: var(--mono); margin-right: 8px; }
+  p, ul { margin: 8px 0; }
+  li { margin: 3px 0; }
+  .sub { color: var(--muted); margin: 0; }
+  code, pre { font-family: var(--mono); font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 1px 4px; border-radius: 3px; }
+  pre {
+    background: var(--code-bg); padding: 12px 14px; border-radius: 6px;
+    overflow-x: auto; line-height: 1.35; margin: 10px 0;
+  }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.94em; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+  th { color: var(--muted); font-weight: 600; }
+  td:first-child { white-space: nowrap; }
+  .lv { display: grid; grid-template-columns: 2.6em 1fr; gap: 4px 10px; margin: 6px 0 14px; }
+  .lv b { color: var(--accent); font-family: var(--mono); }
+  .note { color: var(--muted); font-size: 0.93em; }
+  .wrap { overflow-x: auto; }
+  h3 { font-size: 1rem; margin: 28px 0 6px; }
+  h3 code { font-size: 0.9em; }
+  .tag { font: 600 0.72rem/1 var(--mono); padding: 2px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 2px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.done { color: var(--accent); border-color: var(--accent); }
+  .kv { display: grid; grid-template-columns: 6.5em 1fr; gap: 2px 10px; margin: 6px 0; }
+  .kv > b { color: var(--muted); font-weight: 600; font-size: 0.92em; }
+  .kv > div { min-width: 0; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+<h1>Nano Fabricator Code Guide</h1>
+<p class="sub">CCC Linz Oct 2026, levels 1&ndash;6. Code: <code>ccc/contest.py</code>, <code>ccc/__main__.py</code> (<code>load</code>), <code>ccc/run.py</code>, <code>ccc/contest_test.py</code>. See also: <a href="ANIMATIONS.html">animations</a>, <a href="STRATEGIES.html">level 6 strategy explorer</a>.</p>
+
+<h2><span>1</span>The problem in 6 lines</h2>
+<div class="lv">
+  <b>L1</b><div>Draw an empty hexagon board of radius <code>r</code>: <code>O</code> cells, <code>*</code> border, <code>-</code> padding only.</div>
+  <b>L2</b><div>One emitter digit <code>1</code>&ndash;<code>6</code> on the border fires a straight beam; every <code>O</code> it crosses becomes matter <code>M</code>.</div>
+  <b>L3</b><div>Up to 6 emitters fire at once. A cell hit by 2 beams becomes <code>M</code>, 3+ beams destroy it (<code>O</code>), 0&ndash;1 leave it as is. Beams pass <code>O</code>/<code>M</code> and stop at <code>*</code> or a digit.</div>
+  <b>L4</b><div>Input is a program, not a board. Six emitters start inactive on the corners. Each tick, all 6 commands apply at once (<code>F</code>/<code>B</code> move one border cell clockwise/counter-clockwise, <code>T</code> toggles on/off, <code>-</code> does nothing), then the active ones fire with the L3 rule.</div>
+  <b>L5</b><div>Each item is a pattern board plus an L4 program. After each tick, the pattern is submitted when all its <code>M</code> cells are <code>M</code> and no other <code>M</code> touches them; its cells go back to <code>O</code> and the count goes up. Output: one count per line.</div>
+  <b>L6</b><div>Inverse of L5: given a pattern and a count <code>k</code>, write the program. Valid if it submits &ge; <code>k</code> times; score = total lines. See <a href="#l6">section 7</a>.</div>
+</div>
+<div class="wrap"><pre><code>L2, r=2                        L4, r=2, 3 ticks
+--*-*-*--      --*-*-*--       2            --*-*-*--
+-*-O-O-*-      -*-O-O-*-       3            -*-M-M-*-
+1-O-O-O-*  -&gt;  1-M-M-M-*       F T T F - -  *-M-O-O-*
+-*-O-O-*-      -*-O-O-*-       T - - T - -  -*-M-M-*-
+--*-*-*--      --*-*-*--       T B - B T -  --*-*-*--</code></pre></div>
+<div class="wrap"><pre><code>L5, r=2: pattern, then 1 tick     emitters 1 &rarr; and 4 &larr; both cross the middle row:
+2 5 9                             3 cells get 2 hits &rarr; M, no other M touches them
+--*-*-*--                         &rarr; submitted, output 1
+-*-O-O-*-
+*-M-M-M-*
+-*-O-O-*-
+--*-*-*--
+1
+T - - T - -</code></pre></div>
+<p class="note">The output may keep the emitter digits (L2, L3) or drop them; both are accepted. L4 output is rendered without emitters.</p>
+
+<h2><span>2</span>Data flow</h2>
+<div class="wrap"><pre><code>data/in_level-N_*.txt
+   │  load(lines)          count line, then N items split by blank lines;
+   │                       header "r rows cols" -&gt; Board via parse()     (L2, L3)
+   │                       header "r"           -&gt; Program (r, ticks)    (L4)
+   │                       "r rows cols" + rows + lone tick count
+   │                                    -&gt; Task (r, pattern, ticks)      (L5)
+   │                       read_ticks(lines, i) reads the ticks (L4, L5)
+   ▼
+{"items": [item, ...]}
+   │  solve(data, level=None)   rule = RULES[level or max(RULES)]
+   ▼
+rule(item) -&gt; Board | int  fire2 | fire3 | run4 | run5
+   │  boards: render, blank line between    ints: one per line
+   ▼
+str                        no trailing newline -&gt; data/out_level-N_*.txt (ccc.run)</code></pre></div>
+<p class="note">L1 is not in <code>RULES</code> and its input (bare radii) does not go through <code>load</code>; <code>hexagon(r)</code> produces it directly.</p>
+
+<h2><span>3</span>Board representation</h2>
+<p><code>Board = dict[Cell, str]</code> with <code>Cell = (row, col)</code>, the character's position in the ASCII rows. The <code>-</code> gaps are left out, so every key is a real cell (<code>O</code>, <code>M</code>, <code>*</code> or a digit). Neighbours sit 2 columns apart in a row and 1 column apart diagonally: &ldquo;doubled-width&rdquo; coordinates.</p>
+<div class="wrap"><pre><code>hexagon(2)           keys (row, col)                        ring(2) index
+--*-*-*--                  (0,2) (0,4) (0,6)                    2  3  4
+-*-O-O-*-               (1,1) (1,3) (1,5) (1,7)               1  .  .  5
+*-O-O-O-*            (2,0) (2,2) (2,4) (2,6) (2,8)          0  .  .  .  6
+-*-O-O-*-               (3,1) (3,3) (3,5) (3,7)              11  .  .  7
+--*-*-*--                  (4,2) (4,4) (4,6)                   10  9  8</code></pre></div>
+<p><code>DIRS</code>: emitter digit &rarr; (row, col) step, clockwise starting east.</p>
+<table>
+  <tr><th>digit</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+  <tr><td>arrow</td><td>&rarr;</td><td>&searr;</td><td>&swarr;</td><td>&larr;</td><td>&nwarr;</td><td>&nearr;</td></tr>
+  <tr><td>step</td><td><code>(0,2)</code></td><td><code>(1,1)</code></td><td><code>(1,-1)</code></td><td><code>(0,-2)</code></td><td><code>(-1,-1)</code></td><td><code>(-1,1)</code></td></tr>
+</table>
+<p><b>Why this over the alternatives:</b></p>
+<ul>
+  <li><b>Raw grid</b> (list of strings): immutable rows, the <code>-</code> gaps sit between cells, and every step needs a bounds check. The dict has none of that: <code>b.get(cell)</code> is <code>None</code> off the board, so <code>ray</code> just stops.</li>
+  <li><b>Axial</b> <code>(q, r)</code>: nicer maths, but <code>parse</code>/<code>render</code> would need a conversion. Here they are one-liners and a key is exactly where the character prints.</li>
+  <li><b>numpy</b>: boards are small and the work is walking rays cell by cell, so there is nothing to vectorise, and the gaps would still be in the array.</li>
+</ul>
+<p><b>Rule:</b> only <code>parse</code>, <code>render</code>, <code>DIRS</code>, <code>ray</code>, <code>neighbours</code>, <code>hexagon</code> and <code>ring</code> touch raw coordinates. Everything else treats cells as opaque keys (<code>cell in board</code>, a <code>Counter</code>), so switching to axial would only change those seven.</p>
+
+<h2><span>4</span>Building blocks</h2>
+<table>
+  <tr><th>function</th><th>does</th></tr>
+  <tr><td><code>parse(lines) -&gt; Board</code></td><td>ASCII rows to dict, <code>-</code> dropped.</td></tr>
+  <tr><td><code>render(b) -&gt; str</code></td><td>Dict back to rows, filling holes with <code>-</code>.</td></tr>
+  <tr><td><code>ray(b, start, digit)</code></td><td>Yields the cells a beam from <code>start</code> crosses: through <code>O</code>/<code>M</code>, stopping at anything else (border, digit, off-board).</td></tr>
+  <tr><td><code>neighbours(cell) -&gt; list[Cell]</code></td><td>The 6 adjacent cells, one per <code>DIRS</code> step (may lie off the board).</td></tr>
+  <tr><td><code>hits(b, emitters) -&gt; Counter</code></td><td>Beams per cell for <code>(cell, digit)</code> emitters all firing at once.</td></tr>
+  <tr><td><code>beam_hits(b) -&gt; Counter</code></td><td><code>hits</code> for the emitter digits drawn on the board.</td></tr>
+  <tr><td><code>create_or_destroy(b, counts)</code></td><td>2 hits &rarr; <code>M</code>, 3+ &rarr; <code>O</code>, else unchanged. Mutates and returns <code>b</code>.</td></tr>
+  <tr><td><code>ring(r) -&gt; list[Cell]</code></td><td>The <code>6r</code> border cells clockwise from the west corner; corner of emitter <code>d</code> is index <code>(d-1)*r</code>.</td></tr>
+  <tr><td><code>hexagon(r) -&gt; str</code></td><td>Empty board as text (L1, and the start board for L4).</td></tr>
+  <tr><td><code>fire2(b)</code></td><td>L2: every cell a beam crosses becomes <code>M</code>.</td></tr>
+  <tr><td><code>fire3(b)</code></td><td>L3: <code>create_or_destroy(b, beam_hits(b))</code>.</td></tr>
+  <tr><td><code>iter_ticks(b, r, ticks)</code></td><td>Generator: runs an L4 program on <code>b</code>, yielding <code>b</code> (changed in place) after every tick, so the caller can inspect or edit it in between. Emitters are <code>pos</code> (index into <code>ring(r)</code>) and <code>on</code> lists, kept off the board dict because several can share a cell. Per tick: move/toggle, then <code>create_or_destroy(b, hits(b, active))</code>.</td></tr>
+  <tr><td><code>run_ticks(b, r, ticks) -&gt; Board</code></td><td>Exhausts <code>iter_ticks</code>, returns the final board.</td></tr>
+  <tr><td><code>run4(program)</code></td><td>L4: <code>program = (r, ticks)</code>; <code>run_ticks</code> on an empty <code>hexagon(r)</code>.</td></tr>
+  <tr><td><code>run5(task) -&gt; int</code></td><td>L5: <code>task = (r, pattern, ticks)</code>. <code>want</code> = the pattern's <code>M</code> cells, <code>halo</code> = their neighbours minus <code>want</code>. After each tick of <code>iter_ticks</code>: if all of <code>want</code> is <code>M</code> and none of <code>halo</code> is, reset <code>want</code> to <code>O</code> and count it.</td></tr>
+</table>
+<p class="note">Types: <code>Rule = Callable[[Any], Board | int]</code>, <code>Emitter = tuple[Cell, str]</code>, <code>Program = tuple[int, list[list[str]]]</code>, <code>Task = tuple[int, Board, list[list[str]]]</code>. <code>RULES = {2: fire2, 3: fire3, 4: run4, 5: run5, 6: program6}</code>, <code>CHECKS = {6: valid6}</code>, <code>PARALLEL = {6}</code>; level 6 helpers are in section 7.</p>
+
+<h2><span>5</span>Adding a new level</h2>
+<ul>
+  <li>Write a new rule <code>item -&gt; Board</code> or <code>item -&gt; int</code> (<code>fireN</code>, <code>runN</code>, ...) from the building blocks; split a block out of an old rule if needed. Leave old rules unchanged so old levels stay solvable.</li>
+  <li>Add it to <code>RULES = {level: rule}</code> at the bottom of <code>contest.py</code>. <code>solve</code> defaults to <code>max(RULES)</code>.</li>
+  <li>If the input format changes, add a branch to <code>load</code> in <code>ccc/__main__.py</code> (it dispatches on the number of tokens in the item header and on what follows the board rows; <code>read_ticks</code> reads a tick block).</li>
+  <li><code>uv run python -m ccc.run [N] [filter]</code> (level defaults to <code>max(RULES)</code>) always checks the example first against <code>out_level-N_0-example.txt</code> (exits on mismatch), then writes <code>out_level-N_*.txt</code> for the real inputs in name order, printing each file's time. <code>filter</code> keeps only inputs whose name contains it, e.g. <code>python -m ccc.run 5 small</code>.</li>
+  <li><code>test_outputs</code> picks up every <code>out_level-N_*.txt</code> for levels in <code>RULES</code> automatically. Add a small hand-traced test on <code>hexagon(2)</code> (the <code>small()</code> helper), and add the level to <code>BOARD_LEVELS</code> if its items are boards.</li>
+</ul>
+
+<h2><span>6</span>Testing</h2>
+<p>Run with <code>uv run --with pytest pytest ccc -q</code> (pytest is not a project dependency): 13 test functions, 43 cases.</p>
+<table>
+  <tr><th>test</th><th>covers</th></tr>
+  <tr><td><code>test_level1_example</code></td><td><code>hexagon(r)</code> against the L1 example output.</td></tr>
+  <tr><td><code>test_outputs</code></td><td>Every existing <code>out_level-N_*.txt</code> (example plus confirmed uploads) for levels in <code>RULES</code> equals <code>solve(load(in), N)</code>: old levels can't silently regress.</td></tr>
+  <tr><td><code>test_load_boards</code></td><td>L2/L3 inputs: item count matches, <code>render</code> round-trips each board, each board has at least one emitter and no duplicate digits.</td></tr>
+  <tr><td><code>test_ray_directions</code></td><td>All 6 <code>DIRS</code> from each corner of <code>hexagon(2)</code> through the centre <code>(2,4)</code>.</td></tr>
+  <tr><td><code>test_ray_outward_is_empty</code></td><td>A beam pointing off the board crosses nothing.</td></tr>
+  <tr><td><code>test_ray_stops_at_star_and_emitter</code></td><td>Beam stops at <code>*</code> and at a digit, passes through <code>M</code>.</td></tr>
+  <tr><td><code>test_fire3_rules</code></td><td>Hand-traced 1 / 2 / 3-hit cases, including existing matter.</td></tr>
+  <tr><td><code>test_ring</code></td><td>r = 2, 3, 7: <code>6r</code> distinct <code>*</code> cells, corners at indices <code>k*r</code>.</td></tr>
+  <tr><td><code>test_run4_toggle_and_shared_cell</code></td><td>Toggling on and off, 3 hits destroying, two emitters moving onto the same border cell.</td></tr>
+  <tr><td><code>test_run4_wraps_around</code></td><td><code>B</code> from index 0 wraps to index 11, <code>F</code> wraps back to 0.</td></tr>
+  <tr><td><code>test_load_level4</code></td><td>L4 example parses into 3 programs with the right radii, tick counts and 6 commands per tick.</td></tr>
+  <tr><td><code>test_load_level5</code></td><td>L5 example parses into 2 tasks with the right radii and tick counts, and 5 / 3 <code>M</code> cells per pattern.</td></tr>
+  <tr><td><code>test_run5</code></td><td>Middle row of <code>hexagon(2)</code> built by emitters 1 + 4: one cell with <code>M</code> neighbours is not submitted; the full row is, once per tick it is rebuilt; no ticks, count 0.</td></tr>
+</table>
+
+<h2 id="l6"><span>7</span>Level 6: strategies and results</h2>
+<p class="note">Status: the portfolio <code>program6</code> is valid on every file. Large and enormous are still being computed, and no score has been confirmed by an upload yet. Interactive versions of the sketches below: <a href="STRATEGIES.html">STRATEGIES.html</a>; L4/L5 mechanics: <a href="ANIMATIONS.html">ANIMATIONS.html</a>.</p>
+<p><b>Problem.</b> Each item is a pattern plus a required count <code>k</code>. Output a tick program (<code>F</code>/<code>B</code>/<code>T</code>/<code>-</code> per emitter, L4 format) that submits the pattern at least <code>k</code> times under the L5 rules. <b>Score = total program lines</b>, lower is better.</p>
+
+<h3>7.1 Judge facts</h3>
+<p class="note">Read from the contest sandbox's JS, then checked with a Python port (<code>review6/judge.py</code>) and by fuzzing 3000 programs: 0 mismatches.</p>
+<ul>
+  <li>It accepts &ge; <code>k</code> submissions, and at most 1 submission per tick.</li>
+  <li>Every line is a tick, all-<code>-</code> lines included.</li>
+  <li>Detection is at a fixed position. The <b>halo</b> (in-board <code>O</code> cells next to the pattern) must not be <code>M</code>. Every other cell is don't-care.</li>
+  <li>The board persists within a program. Beams skip non-<code>O</code>/<code>M</code> cells, which matches our <code>ray</code>.</li>
+</ul>
+<p class="note"><code>valid6</code> requires exactly <code>k</code> submissions, which is stricter than the judge. <code>try_cycles</code> cuts every program right after the k-th submission, so this never costs lines.</p>
+
+<h3>7.2 Geometry: what one emitter can do</h3>
+<div class="wrap"><pre><code>r=3: emitter 1's useful arc            ring idx   1 at o=0 + 2 at o=0      1 at o=-1 + 4 at o=+1
+---*-*-*-*---                                     ---2-*-*-*---            ---*-*-*-*---
+--1-O-O-O-*--   o=+2  beam = row 1       2        --*-o-O-O-*--            --*-O-O-O-*--
+-1-O-O-O-O-*-   o=+1  beam = row 2       1        -*-O-o-O-O-*-            -*-O-O-O-O-*-
+1-O-O-O-O-O-*   o= 0  home corner        0        1-o-o-M-o-o-*            *-O-O-O-O-O-*
+-1-O-O-O-O-*-   o=-1                    17        -*-O-O-o-O-*-            -1-M-M-M-M-4-
+--1-O-O-O-*--   o=-2                    16        --*-O-O-o-*--            --*-O-O-O-*--
+---*-*-*-*---                                     ---*-*-*-*---            ---*-*-*-*---
+                                                  o = 1 hit, no change     same chord: a full line
+                                                  crossing: one M          of M in one tick</code></pre></div>
+<ul>
+  <li><b>Arc.</b> Emitter <code>k</code> is only useful at offsets &minus;(r&minus;1)..r&minus;1 around its home corner <code>k&middot;r</code>, and each such position fires one full chord (<code>chords(r)</code>: int bitsets). At &plusmn;r it would sit on the next corner and shine along the border.</li>
+  <li><b>Movement is cheap.</b> Moves on the arc never wrap, so the cost is <code>|&Delta;o|</code>. Emitters move in parallel and can pre-position while off. One beam alone is harmless (1 hit). Lower bound for one transition: max over emitters of (ring distance + toggle).</li>
+  <li><b>Opposite pairs.</b> Pairs 1/4, 2/5 and 3/6 at negated offsets lie on the same chord, so turning both on builds that whole line.</li>
+  <li><b>Hit counting.</b> <code>count_hits</code> is a bitwise adder over the beam masks. It returns the cells hit exactly 2&times; (become <code>M</code>) and 3+&times; (cleared). <code>zone6</code> gives the pattern and halo masks. The halo is built from a set, because summing double-counted cells (a real bug).</li>
+</ul>
+
+<h3>7.3 The key insight: every repetition is the same problem</h3>
+<p>After a submission, the pattern cells go back to <code>O</code>, and the halo had to be <code>O</code> for the submission to count. So the zone that matters is blank again, and every repetition is identical. A strategy is therefore a <b>cycle</b> of <code>m</code> fire configs (an offset or off per emitter), repeated <code>k</code> times:</p>
+<div class="wrap"><pre><code>lines = setup + 1 + (k&middot;m &minus; 1)&middot;gap         cycle_lines()
+        setup = walk from home to the first config   cycle_setup()
+        gap   = ticks between fires (1 if moves fit)  cycle_gap()
+lower bound: lines &ge; k&middot;m*, m* = fewest fire ticks one build needs</code></pre></div>
+<p>So <code>m</code> matters most, then <code>gap</code>, and <code>setup</code> is paid once. <code>cycle_program</code> turns a cycle into ticks: off emitters walk early and toggle on at their fire, while emitters used in consecutive fires stay on and move just before the next one. <code>try_cycles</code> simulates the 30 most promising cycles in every rotation with <code>submissions6</code> (<code>run5</code> on bitmasks) and keeps the shortest.</p>
+<p>Shared search space: <code>effects6</code> brute-forces every config over the chords that touch the zone and groups them by effect (2-hit cells, 3+-hit cells), keeping the <code>KEEP</code>=40 cheapest per effect. Every search step stops after <code>BUDGET</code> = 3 s per item.</p>
+
+<h3>7.4 Baseline: driver pair + greedy helpers <span class="tag done">done</span></h3>
+<div class="kv">
+  <b>idea</b><div>Two driver emitters BFS (<code>drive</code>) to a state where their beams cross on an unbuilt pattern cell, and never cross on the halo on the way. Each tick, the other 4 pick the best of their &le; 4<sup>4</sup> command combinations: score 1000 per newly built cell, plus how close each one is to a chord rich in unbuilt cells. A combination is rejected if it puts 2 hits on a halo cell or 3+ on a built cell. <code>baseline6</code> takes the best of the 6 driver <code>PAIRS</code>.</div>
+  <b>cost</b><div>No formula. Navigation for every cell, rebuilt from scratch for every repetition.</div>
+  <b>wins</b><div>Always valid on any pattern, so it is the fallback in <code>program6</code>. Fine when <code>k</code> is 1&ndash;2.</div>
+  <b>fails</b><div>It never reuses a configuration, so cost grows with <code>k</code>, which hurts on medium (&Sigma;k = 2045).</div>
+</div>
+
+<h3>7.5 Single-tick frame (<code>frame6</code>, m = 1) <span class="tag done">done</span></h3>
+<div class="kv">
+  <b>idea</b><div>Find one config whose 2-hit cells in the zone are exactly the pattern. Walk there, toggle on, and leave it on: every tick re-fires it, rebuilds the pattern from blank and submits again.</div>
+  <b>sketch</b><div><div class="wrap"><pre><code>tick       1  2  3  4  5      (k = 3, farthest offset 2)
+emitter a  F  F  T  -  -
+emitter b  B  -  T  -  -
+emitter c  -  -  T  -  -
+submit           #1 #2 #3</code></pre></div></div>
+  <b>cost</b><div><code>setup + k</code>, which matches the lower bound up to the setup.</div>
+  <b>wins</b><div>Patterns that are crossing points of &le; 6 chords and/or full lines from opposite pairs.</div>
+  <b>fails</b><div>Almost everything else. 6 chords cross in &le; 15 points (<code>MAX_BUILT</code>), and real patterns are single blobs. A frame exists for only 4/10 small, 9/210 medium, 1/190 large and 0/140 enormous items.</div>
+</div>
+
+<h3>7.6 Two-tick A/B cycle (<code>pair6</code>, m = 2) <span class="tag done">done</span></h3>
+<div class="kv">
+  <b>idea</b><div>Fire A, then B. B (a "last" effect) builds part of the pattern and destroys none of it. A builds the rest and may leave stray halo <code>M</code>, which B's 3+ hits clear. Only the state after B has to be clean. Emitters on in both fires slide between them, and the others toggle.</div>
+  <b>sketch</b><div><div class="wrap"><pre><code>tick      s  A  B  A  B  A  B
+shared    .  F  B  F  B  F  B     on in both: move 1 per tick (gap 1)
+A-only    .  T  T  T  T  T  T     on for A, off for B
+submit          #1    #2    #3</code></pre></div></div>
+  <b>cost</b><div><code>setup + 1 + (2k&minus;1)&middot;gap</code>, about <code>2k</code> when gap = 1.</div>
+  <b>wins</b><div>Patterns up to ~30 cells that split into two chord arrangements. This is the workhorse on medium.</div>
+  <b>fails</b><div>When the halo gets in the way (A would need a stray <code>M</code> that B can't clear), or when the shared emitters must move far (gap &gt; 1 doubles the cost).</div>
+</div>
+
+<h3>7.7 Three-tick cycles (<code>triple6</code>, <code>cover6</code>, m = 3) <span class="tag done">done</span></h3>
+<div class="kv">
+  <b>idea</b><div><code>triple6</code>: A, B, C, where C is a "last" effect. After C, exactly the pattern stands, and C's 3+ hits clear what A and B left in the halo. Neither A alone nor A+B may complete the pattern. <code>cover6</code> is the narrow, quick case: B and C are two big, clean, nondestructive frames and A fills the rest, so every tick only adds cells.</div>
+  <b>cost</b><div><code>setup + 1 + (3k&minus;1)&middot;gap</code>.</div>
+  <b>wins</b><div>Mid-size blobs (up to 45 cells) where no pair works.</div>
+  <b>fails</b><div>The search space is effect<sup>3</sup>, so it is cut to the top 40/300 effects and the budget. Big patterns (large, enormous) need more than 3 frames.</div>
+</div>
+
+<h3>7.8 Parked toggle cycle (<code>toggle6</code>) <span class="tag done">done</span></h3>
+<div class="kv">
+  <b>idea</b><div>Walk up to 6 emitters once to fixed lines (<code>parkings</code>: every pattern cell must lie on &ge; 2 of them). After that, each tick only toggles which of them are on. A BFS over the zone state (<code>toggle_cycle</code>) finds the shortest on-subset sequence that leaves exactly the pattern.</div>
+  <b>cost</b><div><code>setup + m&middot;k</code>, with gap always 1 because no emitter moves after setup.</div>
+  <b>wins</b><div>Small patterns whose cycle needs long moves between fires. Parking removes all the moving.</div>
+  <b>fails</b><div>Patterns larger than 15 cells, and patterns that no single set of 6 lines covers twice.</div>
+</div>
+
+<h3>7.9 Portfolio (<code>program6</code>) <span class="tag done">done</span></h3>
+<p>It runs <code>baseline6</code> and then <code>STRATEGIES = [frame6, pair6, triple6, cover6, toggle6]</code>, and returns the shortest <code>valid6</code>-checked candidate. It stops early once the baseline is &le; k+1 lines, because no cycle can beat that. <code>merge6.py</code> keeps the shortest valid program per item across all candidate folders, including remote runs, so the uploaded set only ever improves.</p>
+
+<h3>7.10 Results (lines; lower is better)</h3>
+<div class="wrap"><table>
+  <tr><th>strategy</th><th class="n">example</th><th class="n">small</th><th class="n">medium</th><th class="n">large</th><th class="n">enormous</th><th class="n">4 real files</th></tr>
+  <tr><td>baseline</td><td class="n">41</td><td class="n">174</td><td class="n">11305</td><td class="n">9773</td><td class="n">7790</td><td class="n">29042</td></tr>
+  <tr><td>baseline + frames, per-item min</td><td class="n"></td><td class="n">140</td><td class="n">10924</td><td class="n">9770</td><td class="n">7790</td><td class="n"><b>28624</b></td></tr>
+  <tr><td>portfolio <code>program6</code></td><td class="n">23 <span class="note">(ref. 446)</span></td><td class="n">109</td><td class="n">9389</td><td class="n note">running</td><td class="n note">running</td><td class="n"></td></tr>
+  <tr><td class="note">loose lower bound</td><td class="n note"></td><td class="n note"></td><td class="n note">2272</td><td class="n note">1033</td><td class="n note">687</td><td class="n note"></td></tr>
+</table></div>
+<ul>
+  <li>The <b>28624</b> row was the first improvement good enough to upload.</li>
+  <li>The movement-scheduling prototype (<code>l6_sched/sched.py</code>, the origin of 7.3) took medium items with r &le; 4 from 6295 to 4997 lines (&minus;21%) before it was folded into the portfolio.</li>
+  <li><b>Where the lines are.</b>
+    <ul>
+      <li>Medium is driven by <code>k</code>: median pattern 10 cells, &Sigma;k = 2045. Shrinking m per repetition pays off there.</li>
+      <li>Enormous is driven by build size: median 84 cells, max 297, <code>k</code> &le; 2. Cycles hardly help, a better one-off build does.</li>
+      <li>Every pattern is one connected blob. Covering it greedily takes 1&ndash;16 lines in large (median 6) and 4&ndash;31 in enormous (median 13).</li>
+      <li>The gap to the lower bound is about 4&times; on medium and over 9&times; on large and enormous.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>7.11 In progress <span class="tag">remote compute</span></h3>
+<table>
+  <tr><th>track</th><th>idea</th></tr>
+  <tr><td>Exact ILP / periodic cycles</td><td>Model one period of <code>m</code> fires (positions, toggles, hit counts, halo) as an ILP and minimise <code>m</code> and then <code>gap</code> exactly, instead of a budgeted enumeration.</td></tr>
+  <tr><td>Local search improver</td><td>Start from the best program and drop, merge or shift ticks and commands. Keep a change when <code>valid6</code> still passes and the program got shorter.</td></tr>
+  <tr><td>Multi-tick accumulation</td><td>Build big patterns over many ticks with cells that persist, using 3+ hits as an eraser for stray <code>M</code>. Aimed at enormous, where k &le; 2.</td></tr>
+  <tr><td>Collinear segments</td><td>Use opposite pairs (full lines) and then cut segments out of them with 3-hit crossings. Blobs are mostly runs of collinear cells.</td></tr>
+  <tr><td>Big-pattern beam search</td><td>Beam or greedy search over fire configs for the large and enormous blobs (5&ndash;31 covering lines), scored by cells built per tick.</td></tr>
+  <tr><td>Tooling study</td><td>CP-SAT, MaxSAT and MILP formulations side by side, and a Rust port of the simulator and searches for a 50&ndash;100&times; speedup.</td></tr>
+</table>
+<p><b>Compute setup.</b> Heavy runs execute on two 32-core EC2 boxes. The local machine only edits, merges (<code>merge6.py</code>) and validates.</p>
+</main>
+</body>
+</html>

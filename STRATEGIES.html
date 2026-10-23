@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level 6 Strategies</title>
+<style>
+:root {
+  --bg: #f5f4ef; --card: #ffffff; --fg: #1d1d1b; --muted: #6b6a64; --line: #dedbd2;
+  --cell: #ebe8df; --rim: #c9c5b8; --matter: #34384a; --matter-fg: #fff;
+  --beam: #e5a400; --emit: #1d1d1b; --emit-fg: #ffd400; --emit-off: #b9b5a8;
+  --ok: #2b8a3e; --bad: #d6336c; --want: #1971c2; --halo: #9b9b93; --submit: #40c057;
+  --two: #b2f2bb; --many: #ffc9c9; --chord: #ffe8a3; --ghost: #7950f2;
+  --s-base: #c2610c; --s-cyc: #2f6fdb;
+  --pA: #d0ebff; --pB: #ffe3e3; --pC: #e6fcf5; --pS: #f1f3f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417; --card: #1c1d22; --fg: #ececea; --muted: #9a9aa2; --line: #2e3038;
+    --cell: #272932; --rim: #3a3d48; --matter: #d9dce4; --matter-fg: #131417;
+    --beam: #ffd400; --emit: #ffd400; --emit-fg: #131417; --emit-off: #4a4d58;
+    --ok: #69db7c; --bad: #f783ac; --want: #74c0fc; --halo: #6c6f7a; --submit: #51cf66;
+    --two: #2b5a34; --many: #6b2a3a; --chord: #5c4d12; --ghost: #b197fc;
+    --s-base: #c46f22; --s-cyc: #5b93ec;
+    --pA: #1c3a57; --pB: #4f2530; --pC: #1d4237; --pS: #2a2c33;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 0; }
+p { margin: 6px 0; }
+.lead, .note { color: var(--muted); }
+code, .mono { font: 0.88em ui-monospace, "Cascadia Code", Consolas, monospace; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 18px; }
+.head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.badge { margin-left: auto; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.controls label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 0.85rem; }
+button, select { font: inherit; font-size: 0.9rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--muted); }
+button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+input[type=range] { width: 120px; accent-color: var(--beam); }
+.status { font: 0.85rem ui-monospace, Consolas, monospace; color: var(--muted); }
+.cap { font-size: 0.93rem; min-height: 2.6em; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+svg.board { display: block; width: 100%; max-height: 330px; margin: 8px auto 4px; }
+.side { border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 0.85rem; overflow-x: auto; }
+.side pre { margin: 6px 0; font: 0.78rem/1.35 ui-monospace, Consolas, monospace; white-space: pre; }
+.side .r2 { color: var(--ok); font-weight: bold; } .side .r3 { color: var(--bad); font-weight: bold; }
+.beamrow { display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; align-items: center; font-size: 0.85rem; }
+.beamrow input[type=range] { width: 100%; }
+/* board */
+.c { stroke: var(--rim); stroke-width: 0.6; }
+.c.O { fill: var(--cell); } .c.B { fill: var(--rim); }
+.c.M { fill: var(--matter); stroke: var(--matter); }
+.c.chord { fill: var(--chord); }
+.c.two { fill: var(--two); } .c.many { fill: var(--many); }
+.c.two.M { fill: var(--matter); stroke: var(--ok); stroke-width: 2; }
+.c.want { stroke: var(--want); stroke-width: 1.8; }
+.c.halo { stroke: var(--halo); stroke-width: 1.3; stroke-dasharray: 2 1.5; }
+.c.haloM { stroke: var(--bad); stroke-width: 2.2; stroke-dasharray: none; }
+.c.submit, .c.submit.M, .c.submit.two.M { fill: var(--submit); stroke: var(--submit); }
+.c.slot { fill: var(--rim); stroke: var(--beam); stroke-width: 1.4; }
+.c.click { cursor: pointer; }
+.n { font: bold 7px ui-monospace, Consolas, monospace; text-anchor: middle; dominant-baseline: central; fill: var(--fg); pointer-events: none; }
+.n.onM { fill: var(--matter-fg); }
+.lbl { font: 5px ui-monospace, Consolas, monospace; text-anchor: middle; dominant-baseline: central; fill: var(--muted); pointer-events: none; }
+.beam { stroke: var(--beam); stroke-width: 2.2; stroke-linecap: round; fill: none; opacity: 0.8; }
+.beam.ghost { stroke: var(--ghost); stroke-dasharray: 3 2.5; opacity: 0.8; }
+.em circle { fill: var(--emit); stroke: var(--card); stroke-width: 0.8; }
+.em text { font: bold 6px ui-monospace, Consolas, monospace; fill: var(--emit-fg); text-anchor: middle; dominant-baseline: central; }
+.em.off circle { fill: var(--emit-off); } .em.off text { fill: var(--card); }
+.em.ghost circle { fill: var(--ghost); }
+/* player timeline */
+.tl { display: flex; gap: 2px; margin: 8px 0 2px; overflow-x: auto; padding-bottom: 4px; }
+.tl button { flex: 1 0 22px; min-width: 22px; padding: 2px 0 10px; border-radius: 4px; font: bold 0.75rem ui-monospace, Consolas, monospace; position: relative; border-color: transparent; }
+.tl .A { background: var(--pA); } .tl .B { background: var(--pB); } .tl .C { background: var(--pC); } .tl .setup, .tl .move, .tl .greedy { background: var(--pS); color: var(--muted); }
+.tl button.cur { outline: 2px solid var(--beam); outline-offset: -2px; }
+.tl button.sub::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--submit); }
+.tlkey { font-size: 0.8rem; color: var(--muted); }
+.prog { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 2px 10px; font: 0.78rem ui-monospace, Consolas, monospace; margin-top: 8px; color: var(--muted); }
+.prog span.cur { color: var(--fg); background: var(--chord); border-radius: 3px; }
+.prog span.sub { color: var(--ok); }
+/* chart */
+.chart { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font: 11px system-ui, sans-serif; }
+.chart .sb { stroke: var(--s-base); } .chart .sc { stroke: var(--s-cyc); }
+.chart .ln { fill: none; stroke-width: 2; }
+.chart .dot { stroke: var(--card); stroke-width: 2; }
+.chart .dot.sb { fill: var(--s-base); } .chart .dot.sc { fill: var(--s-cyc); }
+.chart .dl { font: 12px system-ui, sans-serif; fill: var(--fg); }
+.chart .xh { stroke: var(--muted); stroke-dasharray: 3 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
+.sw2 { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; margin: 0 4px 0 8px; border-radius: 3px; }
+.sw { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+.tip { font-size: 0.85rem; min-height: 1.5em; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+details { margin-top: 8px; font-size: 0.85rem; }
+.checks { font-size: 0.85rem; margin: 8px 0 0; padding-left: 18px; }
+.checks .ok { color: var(--ok); } .checks .bad { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+<h1>Level 6 strategies, interactive</h1>
+<p class="lead">How <code>ccc/contest.py</code> writes short programs that submit a pattern <i>k</i> times.
+Everything below is simulated in the page by a port of the solver's board, ray, tick and submission logic; the programs were generated by the Python solver and re-checked here.</p>
+<div class="head"><span class="note">Page self-checks</span><span class="badge" id="allbadge"></span></div>
+<ul class="checks" id="checklist"></ul>
+
+<section id="p1">
+  <div class="head"><h2>1 · Chords and useful positions</h2><span class="badge" id="b1"></span></div>
+  <p class="note">Emitter <i>d</i> starts on corner <i>d</i> and only ever moves to the 2r&minus;1 border cells around it (offset &minus;(r&minus;1)..r&minus;1, the yellow-ringed slots).
+  From each slot its beam covers one full <b>chord</b> of the board, and the 2r&minus;1 chords tile the board once. At &plusmn;r it would sit on the next corner and shine along the border, so the solver never goes there.
+  The opposite emitter at the negated offset (purple, dashed) covers the very same chord from the other end: <code>chords(r)</code> stores <code>(k, o) &rarr; bitmask</code>.</p>
+  <div class="controls">
+    <label>radius <select id="p1r"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label>
+    <span id="p1em" role="group" aria-label="emitter"></span>
+    <label>offset <input type="range" id="p1o"><span class="status" id="p1ov"></span></label>
+  </div>
+  <svg class="board" id="p1svg" role="img" aria-label="chord of the selected emitter"></svg>
+  <div class="cap" id="p1cap"></div>
+</section>
+
+<section id="p2">
+  <div class="head"><h2>2 · Hit counting</h2><span class="badge" id="b2"></span></div>
+  <p class="note">All switched-on beams fire at once. A cell hit by exactly 2 beams becomes <code>M</code> (green), by 3 or more is destroyed back to <code>O</code> (red); 0 or 1 hit leaves it alone.
+  <code>count_hits</code> gets both answers for the whole board at once: every cell is a bit, every beam a bitmask, and three integers form a saturating per-cell counter.</p>
+  <div class="grid2">
+    <div>
+      <svg class="board" id="p2svg" role="img" aria-label="hit counts on a radius-3 board"></svg>
+      <div id="p2rows"></div>
+    </div>
+    <div class="side">
+      <b>The one / two / many adder</b>
+      <pre>for m in beams:            # m: bitmask of a beam
+    many |= two &amp; m        # 2 hits + 1 = 3+
+    carry = one &amp; m
+    one  ^= m              # low bit of the count
+    two = (two ^ carry) &amp; ~many
+return two &amp; ~many, many   # exactly 2, 3+</pre>
+      <div class="note">Bit i = cell i (row-major, the numbers on the board). Each line updates all 19 counters in parallel.</div>
+      <pre id="p2bits"></pre>
+    </div>
+  </div>
+  <div class="cap" id="p2cap"></div>
+</section>
+
+<section id="p3">
+  <div class="head"><h2>3 · Pattern, halo and submission</h2><span class="badge" id="b3"></span></div>
+  <p class="note">After every tick the pattern is submitted when <b>all pattern cells are <code>M</code></b> (blue outline) and <b>no halo cell is <code>M</code></b> (dashed: interior cells touching the pattern). Then only the pattern cells clear to <code>O</code>; matter elsewhere stays.
+  Since the halo must be clean, after each submission the zone that matters is empty again, so every repetition is the same problem. Click cells to add or remove matter.</p>
+  <div class="controls">
+    <select id="p3sel"></select>
+    <button id="p3fill">fill the pattern</button><button id="p3clear">clear board</button><button id="p3sub">submit</button>
+  </div>
+  <svg class="board" id="p3svg" role="img" aria-label="pattern and halo, click to toggle matter"></svg>
+  <div class="cap" id="p3cap" aria-live="polite"></div>
+</section>
+
+<section id="p4">
+  <div class="head"><h2>4 · Strategy players</h2><span class="badge" id="b4"></span></div>
+  <p class="note">Each program comes from <code>ccc.contest</code> and was validated with Python <code>valid6</code>; the badge re-runs it here.
+  <b>baseline</b>: a driver pair walks (BFS) to cross on one unbuilt pattern cell at a time, four greedy helpers add crossings, and it rebuilds from scratch for every submission.
+  <b>Cycles</b> fire a short list of fixed emitter configurations again and again: a lead-in walk (<i>setup</i>), then <b>A</b> &rarr; <b>B</b> &rarr; &hellip;, with a submission after every full round.
+  <b>frame</b> is a 1-config cycle, <b>pair</b> two configs (A may leave stray halo matter that B's 3+ hits wipe), <b>triple</b>/<b>cover</b> three, <b>toggle</b> parks emitters once and only switches them on and off.</p>
+  <div class="controls">
+    <select id="p4sel"></select>
+    <span id="p4strat" role="group" aria-label="strategy"></span>
+  </div>
+  <div class="controls"><span class="status" id="p4lines"></span></div>
+  <div class="tl" id="p4tl" aria-label="ticks"></div>
+  <div class="tlkey"><span class="sw2" style="background:var(--pA)"></span>A<span class="sw2" style="background:var(--pB)"></span>B<span class="sw2" style="background:var(--pC)"></span>C fire ticks of the cycle &middot; grey: setup / move / greedy &middot; green dot: submission</div>
+  <svg class="board" id="p4svg" role="img" aria-label="board during the program"></svg>
+  <div class="cap" id="p4cap" aria-live="polite"></div>
+  <div class="controls">
+    <button id="p4reset" title="reset">&#x23EE;</button><button id="p4back" title="step back">&#x25C0;</button>
+    <button id="p4play">&#x25B6; play</button><button id="p4step" title="step">&#x25B6;|</button>
+    <label>speed <input type="range" id="p4speed" min="1" max="10" value="3"></label>
+    <span class="status" id="p4status"></span>
+  </div>
+  <div class="prog" id="p4prog"></div>
+</section>
+
+<section id="p5">
+  <div class="head"><h2>5 · Why repeats are cheap</h2><span class="badge" id="b5"></span></div>
+  <p class="note">The baseline rebuilds the pattern from scratch each time, so its length grows by a whole build per submission. A cycle pays its setup once and then <code>m &middot; gap</code> ticks per submission:
+  <code>setup + 1 + (m&middot;k &minus; 1)&middot;gap</code>. Real line counts from <code>baseline6</code> and <code>pair6</code> for k = 1..10 on each example pattern.</p>
+  <div class="controls"><select id="p5sel"></select></div>
+  <div class="legend"><span><span class="sw" style="background:var(--s-base)"></span>baseline (rebuild each time)</span><span><span class="sw" style="background:var(--s-cyc)"></span>pair cycle (setup + 2 per k)</span></div>
+  <svg class="chart" id="p5svg" viewBox="0 0 600 260" role="img" aria-label="program lines versus k"></svg>
+  <div class="tip" id="p5tip">Hover or tap the chart for values.</div>
+  <details><summary>table</summary><div id="p5table"></div></details>
+</section>
+
+<section id="p6">
+  <div class="head"><h2>6 · Scoreboard so far</h2></div>
+  <p class="note">Total program lines per input file (lower is better). These numbers come from the coordinator's runs of the full solver, not from this page.</p>
+  <table>
+    <thead><tr><th>file</th><th>baseline</th><th>current best</th><th>saved</th></tr></thead>
+    <tbody>
+      <tr><td>small</td><td>174</td><td>109</td><td>&minus;37%</td></tr>
+      <tr><td>medium</td><td>11305</td><td>9389</td><td>&minus;17%</td></tr>
+      <tr><td>large</td><td>9773</td><td>pending</td><td>&ndash;</td></tr>
+      <tr><td>enormous</td><td>7790</td><td>pending</td><td>&ndash;</td></tr>
+    </tbody>
+  </table>
+</section>
+</main>
+<script>
+"use strict";
+// generated by ccc.contest (baseline6, frame6, pair6, triple6, cover6, toggle6) on data/in_level-6_0-example.txt,
+// plus a tiny r=3 order where a one-tick frame exists; "valid" = Python valid6, "subs" = Python submissions6
+const GEN = {"examples":[{"r":3,"k":3,"board":"---*-*-*-*---\n--*-O-O-O-*--\n-*-O-M-M-O-*-\n*-O-M-O-O-O-*\n-*-O-M-M-O-*-\n--*-O-O-O-*--\n---*-*-*-*---","baseline6":{"lines":11,"valid":true,"subs":[4,7,11],"prog":["- T - F - -","T B - T T T","F F - B T -","B B - F F T","- - - - - -","F F - B B T","B T F F T -","F T B - T T","- F - T F -","- B - T - -","B B - - - -"]},"pair6":{"lines":7,"valid":true,"subs":[3,5,7],"prog":["B B B B - -","B T T B T T","T F F T - -","T B B T - -","T F F T - -","T B B T - -","T F F T - -"],"cycle":{"cycle":[[null,-1,-1,null,0,0],[-2,0,0,-2,0,0]],"stay":true,"gap":1,"setup":1}},"triple6":{"lines":9,"valid":true,"subs":[3,6,9],"prog":["B T T B T T","B B B B - -","T F F T - -","T - - T - -","- B B - - -","T F F T - -","T - - T - -","- B B - - -","T F F T - -"],"cycle":{"cycle":[[null,0,0,null,0,0],[null,-1,-1,null,0,0],[-2,0,0,-2,0,0]],"stay":true,"gap":1,"setup":0}},"cover6":{"lines":10,"valid":true,"subs":[4,7,10],"prog":["B F F - B F","- F - T B T","T T T B T B","T T T - T F","- - - F - -","T T T B T B","T T T - T F","- - - F - -","T T T B T B","T T T - T F"],"cycle":{"cycle":[[null,null,null,0,null,1],[-1,2,1,-1,-2,0],[null,null,null,-1,null,1]],"stay":true,"gap":1,"setup":1}},"toggle6":{"lines":10,"valid":true,"subs":[4,7,10],"prog":["B B B B - -","- T T - - -","T - T - T -","T T T T T T","- T - T - T","T - T - T -","T T T T T T","- T - T - T","T - T - T -","T T T T T T"],"cycle":{"cycle":[[null,-1,-1,null,null,null],[-1,-1,null,null,0,null],[null,null,-1,-1,null,0]],"stay":true,"gap":1,"setup":1}}},{"r":3,"k":1,"board":"---*-*-*-*---\n--*-M-M-M-*--\n-*-M-M-M-M-*-\n*-M-O-M-M-M-*\n-*-O-O-M-M-*-\n--*-M-M-M-*--\n---*-*-*-*---","baseline6":{"lines":6,"valid":true,"subs":[6],"prog":["T T - - T T","- - T T F -","- - T B T B","F B F B - -","- F F - B B","F F - T B -"]},"pair6":{"lines":4,"valid":true,"subs":[4],"prog":["F B F B - B","- - - B - B","T T T T T T","B B B - B -"],"cycle":{"cycle":[[1,-1,1,-2,0,-2],[0,-2,0,-2,-1,-2]],"stay":true,"gap":1,"setup":2}},"triple6":{"lines":7,"valid":true,"subs":[7],"prog":["B - - B B B","B - - B - -","T T T T T T","T T T - T -","F - B F - -","F - B - - -","T T T - T B"],"cycle":{"cycle":[[-2,0,0,-2,-1,-1],[null,null,null,-1,null,-1],[0,0,-2,-1,-1,-2]],"stay":true,"gap":2,"setup":2}},"cover6":{"lines":3,"valid":true,"subs":[3],"prog":["B T B F T F","B F B F B F","T F T T B T"],"cycle":{"cycle":[[null,0,null,null,0,null],[-2,2,-2,2,-2,2],[-2,1,-2,2,-1,2]],"stay":true,"gap":2,"setup":0}}},{"r":4,"k":4,"board":"----*-*-*-*-*----\n---*-O-O-O-O-*---\n--*-O-O-O-M-O-*--\n-*-O-O-M-M-O-O-*-\n*-O-O-O-M-M-O-O-*\n-*-O-O-M-O-O-O-*-\n--*-O-O-M-M-O-*--\n---*-O-O-O-O-*---\n----*-*-*-*-*----","baseline6":{"lines":24,"valid":true,"subs":[8,16,20,24],"prog":["- T T - - -","T F - B - -","B F - - - -","T B - - T F","B B B - T -","- - F F - B","- B F F - B","- F F F - B","- - - - - F","F F B B - F","F - B B T -","F F - F F -","- B - F - F","- B B T T -","- - F T T B","- B F - T B","- - - - B F","T F F B - T","T F B - F -","F F B - T T","B - - F B -","- B - - F -","- - F - - B","T B F - T B"]},"pair6":{"lines":10,"valid":true,"subs":[4,6,8,10],"prog":["B F - - - B","B F - - - -","T - - T T T","F T T B - -","B T T F - -","F T T B - -","B T T F - -","F T T B - -","B T T F - -","F T T B - -"],"cycle":{"cycle":[[-2,null,null,0,0,-1],[-1,2,0,-1,0,-1]],"stay":true,"gap":1,"setup":2}},"triple6":{"lines":13,"valid":true,"subs":[4,7,10,13],"prog":["B F B - F B","- F T T T T","- - F B B B","T T - - - F","T T B F F -","- - F B B B","T T - - - F","T T B F F -","- - F B B B","T T - - - F","T T B F F -","- - F B B B","T T - - - F"],"cycle":{"cycle":[[null,null,-1,0,1,-1],[null,null,0,-1,0,-2],[-1,2,0,-1,0,-1]],"stay":true,"gap":1,"setup":1}},"cover6":{"lines":13,"valid":true,"subs":[4,7,10,13],"prog":["B F B - F B","- F T T T T","T T F B B -","T T - - - B","- - B F F F","T T F B B -","T T - - - B","- - B F F F","T T F B B -","T T - - - B","- - B F F F","T T F B B -","T T - - - B"],"cycle":{"cycle":[[null,null,-1,0,1,-1],[-1,2,0,-1,0,-1],[null,null,0,-1,0,-2]],"stay":true,"gap":1,"setup":1}}}],"frames":{"two cells r=3":{"r":3,"k":5,"board":"---*-*-*-*---\n--*-O-O-O-*--\n-*-O-O-O-O-*-\n*-O-O-M-M-O-*\n-*-O-O-O-O-*-\n--*-O-O-O-*--\n---*-*-*-*---","baseline6":{"lines":10,"valid":true,"subs":[2,4,6,8,10],"prog":["T T - - - -","- F F - B B","- - - - - -","- B B - F F","- - - - - -","- F F - B B","- - - - - -","- B B - F F","- - - - - -","- F F - B B"]},"frame6":{"lines":6,"valid":true,"subs":[2,3,4,5,6],"prog":["- - - - - B","- - T T - T","- - - - - -","- - - - - -","- - - - - -","- - - - - -"],"cycle":{"cycle":[[null,null,0,0,null,-1]],"stay":true,"gap":1,"setup":1}},"pair6":{"lines":10,"valid":true,"subs":[2,4,6,8,10],"prog":["- - - - T T","- - - - B B","- - - - F F","- - - - B B","- - - - F F","- - - - B B","- - - - F F","- - - - B B","- - - - F F","- - - - B B"],"cycle":{"cycle":[[null,null,null,null,0,0],[null,null,null,null,-1,-1]],"stay":true,"gap":1,"setup":0}}}},"sweep":[{"base":[4,7,11,14,18,21,25,28,32,35],"pair":[3,5,7,9,11,13,15,17,19,21]},{"base":[6,11,15,19,23,29,36,42,46,50],"pair":[4,6,8,10,12,14,16,18,20,22]},{"base":[6,13,20,24,31,35,39,46,50,54],"pair":[4,6,8,10,12,14,16,18,20,22]}]};
+
+// ---------- simulation: port of ccc/contest.py (from ANIMATIONS.html) ----------
+const DIRS = { 1: [0, 2], 2: [1, 1], 3: [1, -1], 4: [0, -2], 5: [-1, -1], 6: [-1, 1] };
+const key = (y, x) => y + "," + x;
+const unkey = (k) => k.split(",").map(Number);
+function parse(lines) {
+  const b = new Map();
+  lines.forEach((row, y) => [...row].forEach((c, x) => { if (c !== "-") b.set(key(y, x), c); }));
+  return b;
+}
+function ray(b, [y, x], d) {
+  const [dy, dx] = DIRS[d], out = [];
+  y += dy; x += dx;
+  while (b.get(key(y, x)) === "O" || b.get(key(y, x)) === "M") { out.push([y, x]); y += dy; x += dx; }
+  return out;
+}
+const neighbours = ([y, x]) => Object.values(DIRS).map(([dy, dx]) => [y + dy, x + dx]);
+function hexagon(r) {
+  const rows = [];
+  for (let i = 0; i <= 2 * r; i++) {
+    const d = Math.abs(i - r), n = 2 * r + 1 - d;
+    const cells = d === r ? Array(n).fill("*") : ["*", ...Array(n - 2).fill("O"), "*"];
+    const pad = "-".repeat(d);
+    rows.push(pad + cells.join("-") + pad);
+  }
+  return rows;
+}
+function ring(r) {
+  let y = r, x = 0; const cells = [];
+  for (const side of "612345") {
+    const [dy, dx] = DIRS[side];
+    for (let i = 0; i < r; i++) { cells.push([y, x]); y += dy; x += dx; }
+  }
+  return cells;
+}
+function hits(b, emitters) {
+  const counts = new Map(), beams = [];
+  for (const e of emitters) {
+    const path = ray(b, e.cell, e.d);
+    beams.push({ ...e, path });
+    for (const [y, x] of path) counts.set(key(y, x), (counts.get(key(y, x)) || 0) + 1);
+  }
+  return { counts, beams };
+}
+function createOrDestroy(b, counts) {
+  for (const [k, n] of counts) { if (n === 2) b.set(k, "M"); else if (n >= 3) b.set(k, "O"); }
+}
+function* ticker(b, r, ticks) { // port of iter_ticks
+  const border = ring(r), pos = [0, 1, 2, 3, 4, 5].map((k) => k * r), on = Array(6).fill(false);
+  const emitters = () => pos.map((p, k) => ({ cell: border[p], d: String(k + 1), on: on[k], o: offsetOf(r, k, p) }));
+  for (let t = 0; t < ticks.length; t++) {
+    ticks[t].forEach((cmd, k) => {
+      if (cmd === "F") pos[k] = (pos[k] + 1) % border.length;
+      else if (cmd === "B") pos[k] = (pos[k] - 1 + border.length) % border.length;
+      else if (cmd === "T") on[k] = !on[k];
+    });
+    const { counts, beams } = hits(b, emitters().filter((e) => e.on));
+    createOrDestroy(b, counts);
+    yield { tick: t + 1, cmds: ticks[t], emitters: emitters(), beams, counts };
+  }
+}
+const offsetOf = (r, k, p) => { const d = ((p - k * r) % (6 * r) + 6 * r) % (6 * r); return d >= 3 * r ? d - 6 * r : d; }; // ring index -> offset from home corner
+function zone(pattern) { // want cells, halo cells (interior neighbours of the pattern)
+  const want = [...pattern].filter(([, c]) => c === "M").map(([k]) => k), ws = new Set(want);
+  const halo = new Set(want.flatMap((k) => neighbours(unkey(k)).map(([y, x]) => key(y, x)))
+    .filter((k) => !ws.has(k) && (pattern.get(k) === "O")));
+  return { want, ws, halo };
+}
+const complete = (b, z) => z.want.every((k) => b.get(k) === "M") && [...z.halo].every((k) => b.get(k) !== "M");
+
+// ---------- chords and the bitwise adder (BigInt: r=5 has 61 cells) ----------
+function chords(r) {
+  const empty = parse(hexagon(r)), border = ring(r), bit = new Map(), cells = [];
+  for (const [k, v] of empty) if (v === "O") { bit.set(k, BigInt(cells.length)); cells.push(k); }
+  const masks = new Map(), paths = new Map();
+  for (let k = 0; k < 6; k++) for (let o = -(r - 1); o < r; o++) {
+    const p = ray(empty, border[((k * r + o) % (6 * r) + 6 * r) % (6 * r)], String(k + 1));
+    paths.set(k + "," + o, p);
+    masks.set(k + "," + o, p.reduce((m, [y, x]) => m | (1n << bit.get(key(y, x))), 0n));
+  }
+  return { empty, border, bit, cells, masks, paths };
+}
+function countHits(beams) { // port of count_hits
+  let one = 0n, two = 0n, many = 0n;
+  for (const m of beams) { many |= two & m; const carry = one & m; one ^= m; two = (two ^ carry) & ~many; }
+  return [two & ~many, many, one];
+}
+const popcount = (m) => { let n = 0; while (m) { n += Number(m & 1n); m >>= 1n; } return n; };
+
+// ---------- drawing ----------
+const S = 10, W = Math.sqrt(3) * S;
+const center = ([y, x]) => [x * W / 2, y * 1.5 * S];
+const hexPts = (cx, cy, s) => [0, 1, 2, 3, 4, 5].map((i) => { const a = Math.PI / 180 * (60 * i - 90); return `${(cx + s * Math.cos(a)).toFixed(2)},${(cy + s * Math.sin(a)).toFixed(2)}`; }).join(" ");
+function draw(svg, b, { cls = () => [], text = () => "", beams = [], emitters = [] } = {}) {
+  const cells = [...b.keys()].map(unkey), xs = cells.map((c) => center(c)[0]), ys = cells.map((c) => center(c)[1]);
+  const pad = S * 1.3, x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+  svg.setAttribute("viewBox", `${x0.toFixed(1)} ${y0.toFixed(1)} ${(Math.max(...xs) - x0 + pad).toFixed(1)} ${(Math.max(...ys) - y0 + pad).toFixed(1)}`);
+  let s = "";
+  for (const [k, c] of b) {
+    const [cx, cy] = center(unkey(k));
+    s += `<polygon data-k="${k}" class="c ${c === "M" ? "M" : c === "O" ? "O" : "B"} ${cls(k, c).join(" ")}" points="${hexPts(cx, cy, S * 0.93)}"/>`;
+    const t = text(k, c);
+    if (t) s += t.startsWith("<") ? t.replace(/CX/g, cx).replace(/CY/g, cy) : `<text class="n ${c === "M" ? "onM" : ""}" x="${cx}" y="${cy}">${t}</text>`;
+  }
+  for (const bm of beams) {
+    const [dy, dx] = DIRS[bm.d], end = bm.path.length ? bm.path[bm.path.length - 1] : bm.cell;
+    const tip = center([end[0] + dy * 0.45, end[1] + dx * 0.45]);
+    const pts = [bm.cell, ...bm.path].map(center).concat([tip]).map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ");
+    s += `<polyline class="beam ${bm.cls || ""}" points="${pts}"/>`;
+  }
+  const byCell = new Map();
+  for (const e of emitters) { const k = key(...e.cell); byCell.set(k, [...(byCell.get(k) || []), e]); }
+  for (const es of byCell.values()) es.forEach((e, i) => {
+    let [cx, cy] = center(e.cell);
+    if (es.length > 1) { const a = 2 * Math.PI * i / es.length - Math.PI / 2; cx += Math.cos(a) * S * 0.42; cy += Math.sin(a) * S * 0.42; }
+    s += `<g class="em ${e.on ? "" : "off"} ${e.cls || ""}"><circle cx="${cx}" cy="${cy}" r="${es.length > 1 ? S * 0.38 : S * 0.5}"/><text x="${cx}" y="${cy}">${e.d}</text></g>`;
+  });
+  svg.innerHTML = s;
+}
+const $ = (id) => document.getElementById(id);
+const setBadge = (el, ok, txt) => { el.className = `badge ${ok ? "ok" : "bad"}`; el.textContent = `${ok ? "✓" : "✗"} ${txt}`; };
+const fmtO = (o) => (o > 0 ? "+" : o < 0 ? "−" : "") + Math.abs(o);
+
+// ---------- programs: JS replay ----------
+const STRATS = [["baseline6", "baseline"], ["frame6", "frame"], ["pair6", "pair"], ["triple6", "triple"], ["cover6", "cover"], ["toggle6", "toggle"]];
+const ITEMS = GEN.examples.map((e, i) => ({ ...e, name: `pattern ${i + 1} (r = ${e.r}, k = ${e.k})` }))
+  .concat([{ ...GEN.frames["two cells r=3"], name: "frame demo: two cells (r = 3, k = 5)" }]);
+ITEMS.forEach((it) => { it.pattern = parse(it.board.split("\n")); it.z = zone(it.pattern); });
+function replay(it, s) { // frames + submissions + per-tick cycle labels
+  const ticks = s.prog.map((l) => l.split(" ")), b = parse(hexagon(it.r)), frames = [], subs = [];
+  const cy = s.cycle;
+  const label = (t) => {
+    if (!cy) return "greedy";
+    const i = t - 1;
+    if (i < cy.setup) return "setup";
+    const rel = i - cy.setup;
+    return rel % cy.gap ? "move" : "ABC"[(rel / cy.gap) % cy.cycle.length];
+  };
+  let firesOk = true;
+  for (const st of ticker(b, it.r, ticks)) {
+    const lab = label(st.tick);
+    if (cy && "ABC".includes(lab)) { // the fire tick must show exactly the cycle's config
+      const cfg = cy.cycle["ABC".indexOf(lab)];
+      st.emitters.forEach((e, k) => { if ((cfg[k] === null) === e.on || (e.on && cfg[k] !== e.o)) firesOk = false; });
+    }
+    const done = complete(b, it.z);
+    frames.push({ ...st, board: new Map(b), label: lab, submitted: done });
+    if (done) { subs.push(st.tick); it.z.want.forEach((k) => b.set(k, "O")); }
+  }
+  return { frames, subs, firesOk, labels: frames.map((f) => f.label) };
+}
+
+// ---------- self-checks ----------
+function lcg(seed) { let s = seed; return () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648; }
+const CHECKS = [];
+function check(panel, text, ok) { CHECKS.push({ panel, text, ok }); return ok; }
+function runChecks() {
+  CHECKS.length = 0;
+  // 1: chord symmetry and tiling
+  let sym = true, tile = true;
+  for (let r = 2; r <= 5; r++) {
+    const c = chords(r), full = (1n << BigInt(c.cells.length)) - 1n;
+    for (let k = 0; k < 6; k++) {
+      let or = 0n, n = 0;
+      for (let o = -(r - 1); o < r; o++) {
+        const m = c.masks.get(k + "," + o);
+        if (m !== c.masks.get(((k + 3) % 6) + "," + -o)) sym = false;
+        or |= m; n += popcount(m);
+      }
+      if (or !== full || n !== c.cells.length) tile = false;
+    }
+  }
+  check(1, "chord(k, o) = chord(k+3, −o) for every emitter and offset, r = 2..5", sym);
+  check(1, "each emitter's 2r−1 chords cover every interior cell exactly once", tile);
+  // 2: adder vs direct counting
+  let adder = true; const rnd = lcg(42);
+  for (let t = 0; t < 300; t++) {
+    const r = 3 + (t % 3), c = chords(r), beams = [];
+    for (let k = 0; k < 6; k++) if (rnd() < 0.7) beams.push([k, Math.floor(rnd() * (2 * r - 1)) - (r - 1)]);
+    const [two, many] = countHits(beams.map(([k, o]) => c.masks.get(k + "," + o)));
+    const cnt = new Map();
+    beams.forEach(([k, o]) => c.paths.get(k + "," + o).forEach(([y, x]) => cnt.set(key(y, x), (cnt.get(key(y, x)) || 0) + 1)));
+    let e2 = 0n, e3 = 0n;
+    for (const [k, n] of cnt) { if (n === 2) e2 |= 1n << c.bit.get(k); if (n >= 3) e3 |= 1n << c.bit.get(k); }
+    if (e2 !== two || e3 !== many) adder = false;
+  }
+  check(2, "count_hits port = direct per-cell counting on 300 random beam sets (r = 3..5)", adder);
+  // 3: the example patterns' own boards are complete (pattern all M, halo clean)
+  check(3, "every example pattern, drawn as given, passes the submission rule", ITEMS.every((it) => complete(it.pattern, it.z) && it.z.halo.size > 0));
+  // 4: every program
+  let progs = 0, progsOk = true, firesOk = true;
+  for (const it of ITEMS) for (const [f] of STRATS) {
+    const s = it[f]; if (!s) continue;
+    const rp = replay(it, s); progs++;
+    if (!(s.valid && rp.subs.length === it.k && rp.subs.join() === s.subs.join() && s.lines === s.prog.length)) progsOk = false;
+    if (!rp.firesOk) firesOk = false;
+  }
+  check(4, `all ${progs} embedded programs: JS submissions = Python submissions6 = k, and Python valid6`, progsOk);
+  check(4, "on every cycle fire tick, the on emitters and offsets are exactly the cycle's config", firesOk);
+  // 5: sweep is consistent with the players and the cycle formula
+  let sw = true;
+  GEN.sweep.forEach((row, i) => {
+    const e = GEN.examples[i];
+    if (row.base[e.k - 1] !== e.baseline6.lines || row.pair[e.k - 1] !== e.pair6.lines) sw = false;
+    const c = e.pair6.cycle;
+    if (row.pair[e.k - 1] !== c.setup + 1 + (2 * e.k - 1) * c.gap) sw = false;
+    for (let k = 1; k < row.pair.length; k++) if (row.pair[k] - row.pair[k - 1] !== 2) sw = false;
+  });
+  check(5, "chart data matches the players, and pair lines = setup + 1 + (2k−1)·gap, +2 per k", sw);
+  return CHECKS;
+}
+if (typeof module !== "undefined") module.exports = { runChecks, replay, ITEMS, chords, countHits };
+
+// ---------- UI ----------
+if (typeof document !== "undefined") {
+  runChecks();
+  const all = CHECKS.every((c) => c.ok);
+  setBadge($("allbadge"), all, `${CHECKS.filter((c) => c.ok).length}/${CHECKS.length} checks pass`);
+  $("checklist").innerHTML = CHECKS.map((c) => `<li class="${c.ok ? "ok" : "bad"}">${c.ok ? "✓" : "✗"} <span style="color:var(--fg)">(${c.panel}) ${c.text}</span></li>`).join("");
+  [1, 2, 3, 4, 5].forEach((p) => { const cs = CHECKS.filter((c) => c.panel === p); setBadge($("b" + p), cs.every((c) => c.ok), `${cs.filter((c) => c.ok).length}/${cs.length} self-check${cs.length > 1 ? "s" : ""}`); });
+
+  // ---- panel 1 ----
+  {
+    let r = 3, k = 0, o = 0, C = chords(r);
+    $("p1em").innerHTML = [1, 2, 3, 4, 5, 6].map((d) => `<button data-k="${d - 1}" aria-pressed="${d === 1}">${d}</button>`).join(" ");
+    const sync = () => {
+      const rng = $("p1o"); rng.min = -(r - 1); rng.max = r - 1; rng.value = o;
+      $("p1ov").textContent = fmtO(o);
+      const kk = (k + 3) % 6, path = C.paths.get(k + "," + o), on = new Set(path.map(([y, x]) => key(y, x)));
+      const slots = new Set(); for (let q = -(r - 1); q < r; q++) slots.add(key(...C.border[((k * r + q) % (6 * r) + 6 * r) % (6 * r)]));
+      const cellA = C.border[((k * r + o) % (6 * r) + 6 * r) % (6 * r)], cellB = C.border[((kk * r - o) % (6 * r) + 6 * r) % (6 * r)];
+      const pB = C.paths.get(kk + "," + -o);
+      draw($("p1svg"), C.empty, {
+        cls: (key_) => [on.has(key_) ? "chord" : "", slots.has(key_) ? "slot" : ""],
+        text: (key_, c) => (c === "O" ? `<text class="lbl" x="CX" y="CY">${C.bit.get(key_)}</text>` : ""),
+        beams: [{ cell: cellA, d: String(k + 1), path }, { cell: cellB, d: String(kk + 1), path: pB, cls: "ghost" }],
+        emitters: [{ cell: cellA, d: String(k + 1), on: true }, { cell: cellB, d: String(kk + 1), on: true, cls: "ghost" }],
+      });
+      const same = C.masks.get(k + "," + o) === C.masks.get(kk + "," + -o);
+      $("p1cap").innerHTML = `Emitter <b>${k + 1}</b> at offset <b>${fmtO(o)}</b> (ring index ${k * r}${o ? (o > 0 ? " + " : " − ") + Math.abs(o) : ""}) covers <b>${path.length}</b> cells: bits {${path.map(([y, x]) => C.bit.get(key(y, x))).join(", ")}}. ` +
+        `Emitter ${kk + 1} at ${fmtO(-o)} covers ${same ? "<b>the same chord</b>" : "a different chord (!)"}, so for every chord there are two emitters that can fire it.`;
+      document.querySelectorAll("#p1em button").forEach((b) => b.setAttribute("aria-pressed", +b.dataset.k === k));
+    };
+    $("p1r").onchange = (e) => { r = +e.target.value; C = chords(r); o = Math.max(-(r - 1), Math.min(r - 1, o)); sync(); };
+    $("p1o").oninput = (e) => { o = +e.target.value; sync(); };
+    document.querySelectorAll("#p1em button").forEach((b) => b.onclick = () => { k = +b.dataset.k; sync(); });
+    sync();
+  }
+
+  // ---- panel 2 ----
+  {
+    const r = 3, C = chords(r), st = [true, true, true, false, false, false].map((on, k) => ({ on, o: [0, 0, -1, 0, 0, 0][k] }));
+    $("p2rows").innerHTML = st.map((_, k) => `<div class="beamrow"><label><input type="checkbox" data-k="${k}"> beam ${k + 1}</label><span class="status" id="p2v${k}"></span><input type="range" min="${-(r - 1)}" max="${r - 1}" data-k="${k}"><span></span></div>`).join("");
+    const bits = (m) => C.cells.map((_, i) => ((m >> BigInt(i)) & 1n ? "1" : "·")).join("");
+    const sync = () => {
+      st.forEach((s, k) => {
+        document.querySelector(`#p2rows input[type=checkbox][data-k="${k}"]`).checked = s.on;
+        document.querySelector(`#p2rows input[type=range][data-k="${k}"]`).value = s.o;
+        $("p2v" + k).textContent = `o ${fmtO(s.o)}`;
+      });
+      const act = st.map((s, k) => ({ ...s, k })).filter((s) => s.on);
+      const { counts, beams } = hits(C.empty, act.map((s) => ({ cell: C.border[((s.k * r + s.o) % (6 * r) + 6 * r) % (6 * r)], d: String(s.k + 1), on: true })));
+      draw($("p2svg"), C.empty, {
+        cls: (kk) => { const n = counts.get(kk) || 0; return [n === 2 ? "two" : n >= 3 ? "many" : ""]; },
+        text: (kk, c) => (counts.get(kk) ? String(counts.get(kk)) : c === "O" ? `<text class="lbl" x="CX" y="CY">${C.bit.get(kk)}</text>` : ""),
+        beams, emitters: beams.map((b) => ({ ...b, on: true })),
+      });
+      // adder trace
+      let one = 0n, two = 0n, many = 0n, lines = "bit       " + C.cells.map((_, i) => i % 10).join("") + "\n";
+      for (const s of act) {
+        const m = C.masks.get(s.k + "," + s.o);
+        many |= two & m; const carry = one & m; one ^= m; two = (two ^ carry) & ~many;
+        lines += `beam ${s.k + 1}    ${bits(m)}\n`;
+      }
+      const res2 = two & ~many;
+      lines += `\none       ${bits(one)}\ntwo       ${bits(two)}\nmany      ${bits(many)}\n`;
+      lines += `<span class="r2">=2 → M    ${bits(res2)}</span>\n<span class="r3">3+ → O    ${bits(many)}</span>`;
+      $("p2bits").innerHTML = lines;
+      const d2 = [...counts.values()].filter((n) => n === 2).length, d3 = [...counts.values()].filter((n) => n >= 3).length;
+      const ok = popcount(res2) === d2 && popcount(many) === d3;
+      $("p2cap").innerHTML = `${act.length} beam${act.length === 1 ? "" : "s"} on: <b style="color:var(--ok)">${d2}</b> cell${d2 === 1 ? "" : "s"} hit exactly twice become M, <b style="color:var(--bad)">${d3}</b> hit 3+ times are destroyed. ` +
+        `The bitmask adder agrees with the drawn counts: ${ok ? "✓" : "✗"}. The solver scores thousands of helper combinations per tick this way.`;
+    };
+    document.querySelectorAll("#p2rows input[type=checkbox]").forEach((el) => el.onchange = () => { st[+el.dataset.k].on = el.checked; sync(); });
+    document.querySelectorAll("#p2rows input[type=range]").forEach((el) => el.oninput = () => { st[+el.dataset.k].o = +el.value; sync(); });
+    sync();
+  }
+
+  // ---- panel 3 ----
+  {
+    const items = ITEMS.slice(0, 3); let it, b;
+    $("p3sel").innerHTML = items.map((x, i) => `<option value="${i}">${x.name}</option>`).join("");
+    const load = (i) => { it = items[i]; b = parse(hexagon(it.r)); it.z.want.forEach((k) => b.set(k, "M")); sync(); };
+    const sync = (msg = "") => {
+      const z = it.z, wantM = z.want.filter((k) => b.get(k) === "M").length, haloM = [...z.halo].filter((k) => b.get(k) === "M").length;
+      draw($("p3svg"), b, { cls: (k, c) => [z.ws.has(k) ? "want" : "", z.halo.has(k) ? (c === "M" ? "haloM" : "halo") : "", c === "O" || c === "M" ? "click" : ""] });
+      const ok = wantM === z.want.length && !haloM;
+      $("p3cap").innerHTML = (msg ? `<b>${msg}</b> ` : "") + `Pattern cells M: <b>${wantM}/${z.want.length}</b> ${wantM === z.want.length ? "✓" : "✗"} · halo cells (${z.halo.size}) holding M: <b>${haloM}</b> ${haloM ? "✗" : "✓"} → ` +
+        (ok ? `<b style="color:var(--ok)">submits</b> after this tick (k = ${it.k} needed).` : `no submission yet.`);
+      $("p3sub").disabled = !ok;
+    };
+    $("p3svg").onclick = (e) => { const k = e.target.dataset && e.target.dataset.k; if (!k || !"OM".includes(b.get(k))) return; b.set(k, b.get(k) === "M" ? "O" : "M"); sync(); };
+    $("p3sel").onchange = (e) => load(+e.target.value);
+    $("p3fill").onclick = () => { it.z.want.forEach((k) => b.set(k, "M")); sync(); };
+    $("p3clear").onclick = () => { b = parse(hexagon(it.r)); sync(); };
+    $("p3sub").onclick = () => { it.z.want.forEach((k) => b.set(k, "O")); sync("Submitted: the pattern cleared to O, the zone is clean again."); };
+    load(0);
+  }
+
+  // ---- panel 4 ----
+  {
+    let it, s, rp, i = 0, timer = null, fname;
+    $("p4sel").innerHTML = ITEMS.map((x, j) => `<option value="${j}">${x.name}</option>`).join("");
+    const stop = () => { clearTimeout(timer); timer = null; $("p4play").textContent = "▶ play"; };
+    const show = () => {
+      const f = rp.frames[i - 1], b = f ? f.board : parse(hexagon(it.r)), z = it.z;
+      const subMarks = f && f.submitted;
+      draw($("p4svg"), b, {
+        cls: (k, c) => [subMarks && z.ws.has(k) ? "submit" : "", z.ws.has(k) ? "want" : "", z.halo.has(k) && c !== "*" ? "halo" : "", f && f.counts.get(k) === 2 ? "two" : f && f.counts.get(k) >= 3 ? "many" : ""],
+        text: (k) => (f && f.counts.get(k) ? String(f.counts.get(k)) : ""),
+        beams: f ? f.beams : [],
+        emitters: f ? f.emitters : ring(it.r).filter((_, p) => p % it.r === 0).map((cell, kk) => ({ cell, d: String(kk + 1), on: false })),
+      });
+      document.querySelectorAll("#p4tl button").forEach((bt, j) => bt.classList.toggle("cur", j === i - 1));
+      document.querySelectorAll("#p4prog span").forEach((sp, j) => sp.classList.toggle("cur", j === i - 1));
+      const done = f ? rp.subs.filter((t) => t <= f.tick).length : 0;
+      $("p4status").textContent = `tick ${i}/${rp.frames.length} · submitted ${done}/${it.k}`;
+      if (!f) { $("p4cap").innerHTML = "Tick 0: all emitters off on their corners. Step or play."; return; }
+      const on = f.emitters.filter((e) => e.on).map((e) => `${e.d}@${fmtO(e.o)}`);
+      const what = { setup: "setup: walking to the first positions", move: "between fires: emitters still on move to their next slot", greedy: "greedy step" }[f.label] ||
+        `fire <b>${f.label}</b> (config ${"ABC".indexOf(f.label) + 1} of ${s.cycle.cycle.length})`;
+      $("p4cap").innerHTML = `Tick ${f.tick} <code>${f.cmds.join(" ")}</code> · ${what}. On: ${on.length ? on.join(", ") : "none"}` +
+        (f.submitted ? ` · <b style="color:var(--ok)">submission ${done}/${it.k}!</b>` : ".");
+    };
+    const go = (j) => { i = Math.max(0, Math.min(rp.frames.length, j)); show(); };
+    const load = () => {
+      stop(); s = it[fname]; rp = replay(it, s);
+      const ok = s.valid && rp.subs.length === it.k && rp.subs.join() === s.subs.join();
+      setBadge($("b4"), ok && rp.firesOk, `JS ${rp.subs.length} = Python ${s.subs.length} = k ${it.k}${s.valid ? ", valid6" : ""}`);
+      const best = Math.min(...STRATS.filter(([f]) => it[f]).map(([f]) => it[f].lines));
+      const cy = s.cycle;
+      $("p4lines").innerHTML = `<b>${s.lines} lines</b>` + (s.lines === best ? " (shortest here: program6 picks this)" : ` (shortest: ${best})`) +
+        (cy ? ` · cycle m = ${cy.cycle.length}, gap ${cy.gap}, setup ${cy.setup} → ${cy.setup} + 1 + (${cy.cycle.length}·k − 1)·${cy.gap}` +
+          ` · configs ${cy.cycle.map((c, j) => "ABC"[j] + "=[" + c.map((x) => (x === null ? "·" : fmtO(x))).join(" ") + "]").join(" ")}` : " · no cycle: rebuilds every time");
+      $("p4tl").innerHTML = rp.labels.map((l, j) => `<button class="${l} ${rp.subs.includes(j + 1) ? "sub" : ""}" title="tick ${j + 1}: ${l}">${"ABC".includes(l) ? l : l === "setup" ? "s" : l === "move" ? "·" : "g"}</button>`).join("");
+      document.querySelectorAll("#p4tl button").forEach((bt, j) => bt.onclick = () => { stop(); go(j + 1); });
+      $("p4prog").innerHTML = s.prog.map((l, j) => `<span class="${rp.subs.includes(j + 1) ? "sub" : ""}">${String(j + 1).padStart(2)}│ ${l}</span>`).join("");
+      go(0);
+    };
+    const pick = (j) => {
+      it = ITEMS[j];
+      const avail = STRATS.filter(([f]) => it[f]);
+      if (!it[fname]) fname = (avail.find(([f]) => f === "pair6") || avail[0])[0];
+      $("p4strat").innerHTML = STRATS.map(([f, n]) => `<button data-f="${f}" ${it[f] ? "" : "disabled title='returns None here'"} aria-pressed="${f === fname}">${n}${it[f] ? " " + it[f].lines : ""}</button>`).join(" ");
+      document.querySelectorAll("#p4strat button").forEach((bt) => bt.onclick = () => { fname = bt.dataset.f; document.querySelectorAll("#p4strat button").forEach((x) => x.setAttribute("aria-pressed", x === bt)); load(); });
+      load();
+    };
+    const tick = () => { if (i >= rp.frames.length) return stop(); go(i + 1); timer = setTimeout(tick, 1400 / $("p4speed").value); };
+    $("p4sel").onchange = (e) => pick(+e.target.value);
+    $("p4reset").onclick = () => { stop(); go(0); };
+    $("p4back").onclick = () => { stop(); go(i - 1); };
+    $("p4step").onclick = () => { stop(); go(i + 1); };
+    $("p4play").onclick = () => { if (timer) return stop(); if (i >= rp.frames.length) go(0); $("p4play").textContent = "❚❚ pause"; timer = setTimeout(tick, 1400 / $("p4speed").value); };
+    fname = "pair6"; pick(0);
+  }
+
+  // ---- panel 5 ----
+  {
+    const svg = $("p5svg"), Wd = 600, Ht = 260, L = 40, R = 90, T = 14, B = 30;
+    $("p5sel").innerHTML = GEN.examples.map((e, i) => `<option value="${i}">pattern ${i + 1} (r = ${e.r})</option>`).join("");
+    const render = (i) => {
+      const row = GEN.sweep[i], c = GEN.examples[i].pair6.cycle, ks = row.base.map((_, j) => j + 1);
+      const ymax = Math.ceil(Math.max(...row.base) / 10) * 10, xs = (k) => L + (k - 1) / 9 * (Wd - L - R), ys = (v) => T + (1 - v / ymax) * (Ht - T - B);
+      let s = "";
+      for (let v = 0; v <= ymax; v += ymax / 5) s += `<line class="grid" x1="${L}" x2="${Wd - R}" y1="${ys(v)}" y2="${ys(v)}"/><text class="axis" x="${L - 6}" y="${ys(v) + 4}" text-anchor="end">${v}</text>`;
+      ks.forEach((k) => s += `<text class="axis" x="${xs(k)}" y="${Ht - B + 16}" text-anchor="middle">${k}</text>`);
+      s += `<text class="axis" x="${Wd - R + 4}" y="${Ht - B + 16}">k</text>`;
+      const line = (vals, cl) => `<polyline class="ln ${cl}" points="${vals.map((v, j) => `${xs(j + 1)},${ys(v)}`).join(" ")}"/>` + vals.map((v, j) => `<circle class="dot ${cl}" cx="${xs(j + 1)}" cy="${ys(v)}" r="4"/>`).join("");
+      s += line(row.base, "sb") + line(row.pair, "sc");
+      s += `<text class="dl" x="${xs(10) + 8}" y="${ys(row.base[9]) + 4}">baseline ${row.base[9]}</text><text class="dl" x="${xs(10) + 8}" y="${ys(row.pair[9]) + 4}">pair ${row.pair[9]}</text>`;
+      s += `<line class="xh" id="p5xh" x1="0" x2="0" y1="${T}" y2="${Ht - B}" visibility="hidden"/>`;
+      ks.forEach((k) => s += `<rect data-k="${k}" x="${xs(k) - (Wd - L - R) / 18}" y="${T}" width="${(Wd - L - R) / 9}" height="${Ht - T - B}" fill="transparent"/>`);
+      svg.innerHTML = s;
+      const tip = (k) => {
+        const xh = $("p5xh"); xh.setAttribute("x1", xs(k)); xh.setAttribute("x2", xs(k)); xh.setAttribute("visibility", "visible");
+        $("p5tip").innerHTML = `k = <b>${k}</b>: baseline <b>${row.base[k - 1]}</b> lines, pair cycle <b>${row.pair[k - 1]}</b> = ${c.setup} + 1 + (2·${k} − 1)·${c.gap} → saves ${row.base[k - 1] - row.pair[k - 1]} lines (${Math.round(100 * (1 - row.pair[k - 1] / row.base[k - 1]))}%).`;
+      };
+      svg.querySelectorAll("rect[data-k]").forEach((rc) => { rc.onmouseenter = () => tip(+rc.dataset.k); rc.onclick = () => tip(+rc.dataset.k); });
+      $("p5table").innerHTML = `<table><thead><tr><th>k</th>${ks.map((k) => `<th>${k}</th>`).join("")}</tr></thead><tbody>` +
+        `<tr><td>baseline</td>${row.base.map((v) => `<td>${v}</td>`).join("")}</tr><tr><td>pair</td>${row.pair.map((v) => `<td>${v}</td>`).join("")}</tr></tbody></table>`;
+    };
+    $("p5sel").onchange = (e) => render(+e.target.value);
+    render(0);
+  }
+}
+</script>
+</body>
+</html>

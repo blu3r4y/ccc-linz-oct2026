@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nano Fabricator Animations</title>
+<style>
+:root {
+  --bg: #f5f4ef; --card: #ffffff; --fg: #1d1d1b; --muted: #6b6a64; --line: #dedbd2;
+  --cell: #ebe8df; --rim: #c9c5b8; --matter: #34384a; --matter-fg: #fff;
+  --beam: #e5a400; --emit: #1d1d1b; --emit-fg: #ffd400; --emit-off: #b9b5a8;
+  --ok: #2b8a3e; --bad: #d6336c; --want: #1971c2; --halo: #9b9b93; --submit: #40c057;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417; --card: #1c1d22; --fg: #ececea; --muted: #9a9aa2; --line: #2e3038;
+    --cell: #272932; --rim: #3a3d48; --matter: #d9dce4; --matter-fg: #131417;
+    --beam: #ffd400; --emit: #ffd400; --emit-fg: #131417; --emit-off: #4a4d58;
+    --ok: #69db7c; --bad: #f783ac; --want: #74c0fc; --halo: #6c6f7a; --submit: #51cf66;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 0; }
+p { margin: 6px 0; }
+.lead, .note { color: var(--muted); }
+code { font: 0.9em ui-monospace, "Cascadia Code", Consolas, monospace; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px; margin-top: 18px; }
+.head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.badge { margin-left: auto; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px;
+  border: 1px solid currentColor; white-space: nowrap; }
+.badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+svg.board { display: block; width: 100%; max-height: 440px; margin: 10px auto 4px; }
+.caption { min-height: 3em; font-size: 0.95rem; }
+.caption b { color: var(--ok); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+button, select { font: inherit; font-size: 0.9rem; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+button:hover, select:hover { border-color: var(--muted); }
+.controls label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 0.85rem; }
+input[type=range] { width: 100px; accent-color: var(--beam); }
+.status { margin-left: auto; font: 0.85rem ui-monospace, Consolas, monospace; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.85rem; color: var(--muted); margin-top: 10px; }
+.legend svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+/* board */
+.c { stroke: var(--rim); stroke-width: 0.6; }
+.c.O { fill: var(--cell); }
+.c.B { fill: var(--rim); }
+.c.M { fill: var(--matter); stroke: var(--matter); }
+.c.want { stroke: var(--want); stroke-width: 1.8; }
+.c.halo { stroke: var(--halo); stroke-width: 1.2; stroke-dasharray: 2 1.5; }
+.c.made { stroke: var(--ok); stroke-width: 2.2; }
+.c.killed { stroke: var(--bad); stroke-width: 2.2; }
+.c.submit { fill: var(--submit); stroke: var(--submit); }
+.c.head { stroke: var(--beam); stroke-width: 2.4; }
+.n { font: bold 7px ui-monospace, Consolas, monospace; text-anchor: middle; dominant-baseline: central; fill: var(--fg); }
+.n.onM { fill: var(--matter-fg); }
+.n.two { fill: var(--ok); } .n.many { fill: var(--bad); }
+.beam { stroke: var(--beam); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; fill: none; opacity: 0.75; }
+.em circle { fill: var(--emit); stroke: var(--card); stroke-width: 0.8; }
+.em text { font: bold 6px ui-monospace, Consolas, monospace; fill: var(--emit-fg); text-anchor: middle; dominant-baseline: central; }
+.em.off circle { fill: var(--emit-off); }
+.em.off text { fill: var(--card); }
+.em.drv circle { stroke: var(--want); stroke-width: 1.8; }
+.beam.help { stroke-dasharray: 3 2.5; opacity: 0.55; }
+/* level 6 comparison */
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; }
+.seg button:first-child { border-radius: 8px 0 0 8px; }
+.seg button:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.pbadge { margin-left: auto; }
+.prog { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font: 0.9rem ui-monospace, Consolas, monospace; }
+.prog .lines { color: var(--muted); }
+.subline .flash { color: var(--ok); font-weight: bold; }
+svg.timeline { display: block; width: 100%; height: 14px; margin: 2px 0 6px; cursor: pointer; }
+.tl-bg { fill: var(--cell); }
+.tl-sub { fill: var(--submit); }
+.tl-sub.later { opacity: 0.3; }
+.tl-cur { fill: var(--beam); }
+</style>
+</head>
+<body>
+<main>
+<h1>Nano Fabricator, animated</h1>
+<p class="lead">Step-through animations of the level 2&ndash;6 mechanics, simulated in the page by a port of
+<code>ccc/contest.py</code>. The badge on each card says whether the port reproduces the expected example output.</p>
+<div class="legend" id="legend"></div>
+<div id="cards"></div>
+</main>
+<script>
+"use strict";
+// example data from data/*_0-example.txt (level 6: all patterns, the reference programs and ours)
+const DATA = {
+  in2: `6
+4 9 17
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+1-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+4 9 17
+----*-*-*-*-*----
+---2-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+4 9 17
+----*-*-3-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+4 9 17
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-4--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+4 9 17
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-5----
+
+4 9 17
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-6-*-*-*----
+
+`,
+  out2: `----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+1-M-M-M-M-M-M-M-*
+-*-O-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+----*-*-*-*-*----
+---2-O-O-O-O-*---
+--*-M-O-O-O-O-*--
+-*-O-M-O-O-O-O-*-
+*-O-O-M-O-O-O-O-*
+-*-O-O-M-O-O-O-*-
+--*-O-O-M-O-O-*--
+---*-O-O-M-O-*---
+----*-*-*-*-*----
+
+----*-*-3-*-*----
+---*-O-M-O-O-*---
+--*-O-M-O-O-O-*--
+-*-O-M-O-O-O-O-*-
+*-O-M-O-O-O-O-O-*
+-*-M-O-O-O-O-O-*-
+--*-O-O-O-O-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-*-
+--*-M-M-M-M-M-4--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+
+----*-*-*-*-*----
+---*-M-O-O-O-*---
+--*-O-M-O-O-O-*--
+-*-O-O-M-O-O-O-*-
+*-O-O-O-M-O-O-O-*
+-*-O-O-O-M-O-O-*-
+--*-O-O-O-M-O-*--
+---*-O-O-O-M-*---
+----*-*-*-*-5----
+
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-O-M-*--
+-*-O-O-O-O-M-O-*-
+*-O-O-O-O-M-O-O-*
+-*-O-O-O-M-O-O-*-
+--*-O-O-M-O-O-*--
+---*-O-M-O-O-*---
+----*-6-*-*-*----
+
+`,
+  in3: `3
+3 7 13
+---2-*-*-3---
+--*-M-M-O-*--
+-*-O-O-O-O-*-
+1-O-O-M-O-O-*
+-*-O-M-O-O-4-
+--*-O-O-O-*--
+---*-*-*-*---
+
+4 9 17
+----2-*-*-3-*----
+---*-O-M-M-M-*---
+--*-M-O-O-O-O-*--
+-*-O-O-O-O-O-O-*-
+*-O-O-O-M-O-M-O-*
+-1-O-M-O-M-O-O-4-
+--*-O-O-O-M-O-*--
+---*-O-O-M-M-*---
+----*-*-*-*-*----
+
+6 13 25
+------*-*-*-*-*-2-*------
+-----*-O-O-O-O-O-O-*-----
+----*-O-O-O-O-O-O-O-*----
+---*-O-O-O-O-O-O-O-O-*---
+--*-O-O-O-O-O-O-O-O-O-3--
+-1-O-O-O-O-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-O-O-O-O-*
+-*-O-O-O-O-O-O-O-O-O-O-5-
+--*-O-O-O-O-O-O-O-O-O-*--
+---6-O-O-O-O-O-O-O-M-4---
+----*-O-O-O-O-O-O-O-*----
+-----*-O-O-O-O-O-O-*-----
+------*-*-*-*-*-*-*------
+
+`,
+  out3: `---2-*-*-3---
+--*-M-M-O-*--
+-*-O-O-O-O-*-
+1-O-O-O-O-O-*
+-*-O-M-M-O-4-
+--*-O-O-O-*--
+---*-*-*-*---
+
+----2-*-*-3-*----
+---*-O-M-M-M-*---
+--*-M-O-O-O-O-*--
+-*-O-O-M-O-O-O-*-
+*-O-O-O-M-O-M-O-*
+-1-M-O-M-O-M-M-4-
+--*-O-O-O-M-O-*--
+---*-O-O-M-M-*---
+----*-*-*-*-*----
+
+------*-*-*-*-*-2-*------
+-----*-O-O-O-O-O-M-*-----
+----*-O-O-O-O-O-O-M-*----
+---*-O-O-O-O-O-O-O-M-*---
+--*-O-O-O-O-O-O-O-O-M-3--
+-1-O-O-M-O-O-O-O-O-O-O-*-
+*-O-O-O-O-O-O-O-O-O-O-M-*
+-*-O-O-O-O-O-O-O-O-O-O-5-
+--*-O-O-O-O-O-O-O-O-O-*--
+---6-O-O-O-O-O-O-M-M-4---
+----*-O-O-O-O-O-O-O-*----
+-----*-O-O-O-O-O-O-*-----
+------*-*-*-*-*-*-*------
+
+`,
+  in4: `3
+2
+3
+F T T F - -
+T - - T - -
+T B - B T -
+
+3
+6
+B B B B B B
+- - - T T -
+- - T - T -
+- T - T - -
+T - T - - -
+- T - - - T
+
+3
+6
+- T F - B -
+F - T - - -
+B B B T T F
+T F - F T F
+- F T F - B
+- F F B B T
+
+`,
+  out4: `--*-*-*--
+-*-M-M-*-
+*-M-O-O-*
+-*-M-M-*-
+--*-*-*--
+
+---*-*-*-*---
+--*-O-O-O-*--
+-*-O-M-M-O-*-
+*-O-M-O-O-O-*
+-*-O-M-M-O-*-
+--*-O-O-O-*--
+---*-*-*-*---
+
+---*-*-*-*---
+--*-O-O-O-*--
+-*-O-O-M-O-*-
+*-O-M-O-M-M-*
+-*-M-M-M-O-*-
+--*-O-O-O-*--
+---*-*-*-*---
+
+`,
+  in5: `2
+3 7 13
+---*-*-*-*---
+--*-O-O-O-*--
+-*-O-M-M-O-*-
+*-O-M-O-O-O-*
+-*-O-M-M-O-*-
+--*-O-O-O-*--
+---*-*-*-*---
+7
+F T T F - -
+T - - T - -
+T B - B T -
+T F - F T -
+T B - B T -
+T F - F T -
+T B - B T -
+
+3 7 13
+---*-*-*-*---
+--*-O-O-O-*--
+-*-O-O-O-O-*-
+*-O-O-M-O-O-*
+-*-O-M-M-O-*-
+--*-O-O-O-*--
+---*-*-*-*---
+6
+B - - - - -
+T T T - - -
+- - - - - -
+- - - - - -
+- - - - - -
+- - - - - -
+
+`,
+  out5: `3
+5
+`,
+  in6: `3
+3 7 13 3
+---*-*-*-*---
+--*-O-O-O-*--
+-*-O-M-M-O-*-
+*-O-M-O-O-O-*
+-*-O-M-M-O-*-
+--*-O-O-O-*--
+---*-*-*-*---
+
+3 7 13 1
+---*-*-*-*---
+--*-M-M-M-*--
+-*-M-M-M-M-*-
+*-M-O-M-M-M-*
+-*-O-O-M-M-*-
+--*-M-M-M-*--
+---*-*-*-*---
+
+4 9 17 4
+----*-*-*-*-*----
+---*-O-O-O-O-*---
+--*-O-O-O-M-O-*--
+-*-O-O-M-M-O-O-*-
+*-O-O-O-M-M-O-O-*
+-*-O-O-M-O-O-O-*-
+--*-O-O-M-M-O-*--
+---*-O-O-O-O-*---
+----*-*-*-*-*----
+`,
+  out6: `F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+B - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+B - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+B - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+T - T - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+B - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+B - - - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+B - - - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - T - - -
+
+F - - - - -
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+F - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - B - - -
+- - T - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - F - - -
+- - B - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+T - - - - -
+T - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+B - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+T - - - - -
+T - - - - -
+- - B - - -
+- - B - - -
+B - - - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - F - - -
+- - T - - -
+`,
+  // generated by ccc/contest.py solve(load(in_level-6_0-example.txt), 6)
+  ours6: `B - B F B F
+T - T T T T
+T - T T - B
+T - T T - F
+T - T T - B
+T - T T - F
+T - T T - B
+
+B F B B B -
+B T B T T T
+T B T - B -
+- - - F - B
+
+B F B - F B
+- F T T T T
+T T F B B -
+T T - - - B
+- - B F F F
+T T F B B -
+T T - - - B
+- - B F F F
+T T F B B -
+T T - - - B
+- - B F F F
+T T F B B -
+T T - - - B
+`,
+};
+
+// submissions per program as counted by Python's ccc.contest.run5 (cross-check for the JS port)
+const PY6 = { reference: [3, 1, 4], ours: [3, 1, 4] };
+
+// ---------- simulation: port of ccc/contest.py ----------
+const DIRS = { 1: [0, 2], 2: [1, 1], 3: [1, -1], 4: [0, -2], 5: [-1, -1], 6: [-1, 1] }; // → ↘ ↙ ← ↖ ↗
+const key = (y, x) => y + "," + x;
+const unkey = (k) => k.split(",").map(Number);
+
+function parse(lines) {
+  const b = new Map();
+  lines.forEach((row, y) => [...row].forEach((c, x) => { if (c !== "-") b.set(key(y, x), c); }));
+  return b;
+}
+function render(b) {
+  let R = 0, C = 0;
+  for (const k of b.keys()) { const [y, x] = unkey(k); R = Math.max(R, y); C = Math.max(C, x); }
+  const out = [];
+  for (let y = 0; y <= R; y++) { let s = ""; for (let x = 0; x <= C; x++) s += b.get(key(y, x)) ?? "-"; out.push(s); }
+  return out.join("\n");
+}
+function ray(b, [y, x], d) { // cells a beam crosses, through O and M up to the border
+  const [dy, dx] = DIRS[d], out = [];
+  y += dy; x += dx;
+  while (b.get(key(y, x)) === "O" || b.get(key(y, x)) === "M") { out.push([y, x]); y += dy; x += dx; }
+  return out;
+}
+const neighbours = ([y, x]) => Object.values(DIRS).map(([dy, dx]) => [y + dy, x + dx]);
+function hexagon(r) {
+  const rows = [];
+  for (let i = 0; i <= 2 * r; i++) {
+    const d = Math.abs(i - r), n = 2 * r + 1 - d;
+    const cells = d === r ? Array(n).fill("*") : ["*", ...Array(n - 2).fill("O"), "*"];
+    const pad = "-".repeat(d);
+    rows.push(pad + cells.join("-") + pad);
+  }
+  return rows;
+}
+function ring(r) { // border clockwise from the west corner (r, 0); corner d-1 at index (d-1)*r
+  let y = r, x = 0; const cells = [];
+  for (const side of "612345") {
+    const [dy, dx] = DIRS[side];
+    for (let i = 0; i < r; i++) { cells.push([y, x]); y += dy; x += dx; }
+  }
+  return cells;
+}
+function hits(b, emitters) { // emitters: [{cell, d}] -> {counts: Map, beams: [{cell, d, path}]}
+  const counts = new Map(), beams = [];
+  for (const e of emitters) {
+    const path = ray(b, e.cell, e.d);
+    beams.push({ ...e, path });
+    for (const [y, x] of path) counts.set(key(y, x), (counts.get(key(y, x)) || 0) + 1);
+  }
+  return { counts, beams };
+}
+function createOrDestroy(b, counts) { // 2 hits -> M, 3+ -> O; returns the marks
+  const marks = new Map();
+  for (const [k, n] of counts) {
+    if (n === 2) { if (b.get(k) !== "M") marks.set(k, "made"); b.set(k, "M"); }
+    else if (n >= 3) { if (b.get(k) === "M") marks.set(k, "killed"); b.set(k, "O"); }
+  }
+  return marks;
+}
+const boardEmitters = (b) => [...b].filter(([, c]) => c in DIRS)
+  .map(([k, c]) => ({ cell: unkey(k), d: c, on: true })).sort((a, z) => a.d - z.d);
+
+// ---------- input parsing ----------
+function reader(text) { const ls = text.split("\n").filter((l) => l.trim()); let i = 0; return () => ls[i++]; }
+function loadBoards(text) { // levels 2/3: N, then "r rows cols" + rows
+  const next = reader(text), items = [];
+  for (let n = +next(); n--;) { const [, rows] = next().split(" ").map(Number); items.push(parse(Array.from({ length: rows }, next))); }
+  return items;
+}
+function loadPrograms(text) { // level 4: N, then r, T, T tick lines
+  const next = reader(text), items = [];
+  for (let n = +next(); n--;) { const r = +next(), t = +next(); items.push({ r, ticks: Array.from({ length: t }, () => next().split(" ")) }); }
+  return items;
+}
+function loadTasks(text) { // level 5: N, then "r rows cols" + pattern rows, T, T tick lines
+  const next = reader(text), items = [];
+  for (let n = +next(); n--;) {
+    const [r, rows] = next().split(" ").map(Number);
+    const pattern = parse(Array.from({ length: rows }, next));
+    const t = +next();
+    items.push({ r, pattern, ticks: Array.from({ length: t }, () => next().split(" ")) });
+  }
+  return items;
+}
+function loadOrders(text) { // level 6: N, then "r rows cols count" + pattern rows
+  const next = reader(text), items = [];
+  for (let n = +next(); n--;) {
+    const [r, rows, , required] = next().split(" ").map(Number);
+    items.push({ r, pattern: parse(Array.from({ length: rows }, next)), required });
+  }
+  return items;
+}
+const loadOutPrograms = (text) => text.trim().split(/\n\s*\n/).map((blk) => blk.trim().split("\n").map((l) => l.trim().split(" ")));
+const outBoards = (text) => text.trim().split("\n\n").map((s) => s.trim());
+
+// ---------- frame builders: every frame is a full snapshot to draw ----------
+const snap = (b, o) => ({ board: new Map(b), emitters: [], beams: [], counts: null, marks: new Map(), ...o });
+
+function framesL2(b0) {
+  const b = new Map(b0), [e] = boardEmitters(b), path = ray(b, e.cell, e.d), arrow = "→↘↙←↖↗"[e.d - 1];
+  const frames = [snap(b, { emitters: [e], caption: `Emitter ${e.d} sits on the border and fires ${arrow}.` })];
+  path.forEach(([y, x], i) => {
+    b.set(key(y, x), "M");
+    frames.push(snap(b, { emitters: [e], beams: [{ ...e, path: path.slice(0, i + 1) }], marks: new Map([[key(y, x), "head"]]),
+      caption: `Step ${i + 1}: the beam crosses (${y}, ${x}), O becomes M.` }));
+  });
+  frames.push(snap(b, { emitters: [e], beams: [{ ...e, path }],
+    caption: `The next cell is the border, so the beam stops. ${path.length} cells turned into matter.` }));
+  return frames;
+}
+
+function framesL3(b0) {
+  const b = new Map(b0), es = boardEmitters(b);
+  const frames = [snap(b, { emitters: es, caption: `${es.length} emitters fire at the same time. Count the beams crossing each cell.` })];
+  const all = hits(b, es);
+  for (let i = 1; i <= es.length; i++) {
+    const { counts, beams } = hits(b, es.slice(0, i));
+    frames.push(snap(b, { emitters: es, beams, counts, caption: `Adding the beam of emitter ${es[i - 1].d}: the numbers are hits so far.` }));
+  }
+  const marks = createOrDestroy(b, all.counts);
+  const made = [...all.counts.values()].filter((n) => n === 2).length, many = [...all.counts.values()].filter((n) => n >= 3).length;
+  frames.push(snap(b, { emitters: es, beams: all.beams, counts: all.counts, marks,
+    caption: `Apply: ${made} cells with exactly 2 hits become M, ${many} cells with 3+ hits become O. 0 or 1 hit leaves a cell as it is.` }));
+  return frames;
+}
+
+function* ticker(b, r, ticks) { // port of iter_ticks, also yields what happened
+  const border = ring(r), pos = [0, 1, 2, 3, 4, 5].map((k) => k * r), on = Array(6).fill(false);
+  const emitters = () => pos.map((p, k) => ({ cell: border[p], d: String(k + 1), on: on[k] }));
+  yield { tick: 0, emitters: emitters(), beams: [], counts: null, marks: new Map() };
+  for (let t = 0; t < ticks.length; t++) {
+    ticks[t].forEach((cmd, k) => {
+      if (cmd === "F") pos[k] = (pos[k] + 1) % border.length;
+      else if (cmd === "B") pos[k] = (pos[k] - 1 + border.length) % border.length;
+      else if (cmd === "T") on[k] = !on[k];
+    });
+    const { counts, beams } = hits(b, emitters().filter((e) => e.on));
+    const marks = createOrDestroy(b, counts);
+    yield { tick: t + 1, cmds: ticks[t].join(" "), emitters: emitters(), beams, counts, marks };
+  }
+}
+function tickCaption(s) {
+  if (!s.tick) return "Tick 0: all six emitters start switched off on the corners, emitter d on corner d.";
+  const made = [...s.marks.values()].filter((m) => m === "made").length, killed = [...s.marks.values()].filter((m) => m === "killed").length;
+  return `Tick ${s.tick}: <code>${s.cmds}</code> (F = clockwise, B = counter-clockwise, T = toggle). ` +
+    `${s.beams.length} beam${s.beams.length === 1 ? "" : "s"} active` + (made + killed ? `, ${made} created, ${killed} destroyed.` : ".");
+}
+
+function framesL4({ r, ticks }) {
+  const b = parse(hexagon(r)), frames = [];
+  for (const s of ticker(b, r, ticks)) frames.push(snap(b, { ...s, caption: tickCaption(s) }));
+  return frames;
+}
+
+function roles(s, prev, wantSet) { // level 6: beams pairing up on an unbuilt pattern cell are drivers, other beams help
+  const drv = new Set(), cells = [];
+  for (const [k, n] of s.counts || []) {
+    if (n !== 2 || !wantSet.has(k) || prev.get(k) === "M") continue;
+    cells.push(k);
+    s.beams.filter((bm) => bm.path.some(([y, x]) => key(y, x) === k)).forEach((bm) => drv.add(bm.d));
+  }
+  const on = s.emitters.filter((e) => e.on).map((e) => e.d), help = on.filter((d) => !drv.has(d));
+  const emitters = s.emitters.map((e) => ({ ...e, role: !e.on ? "" : drv.has(e.d) ? "drv" : "help" }));
+  const beams = s.beams.map((bm) => ({ ...bm, role: drv.has(bm.d) ? "drv" : "help" }));
+  const text = !on.length ? " All emitters off." : ` On: ${on.join(" ")}.` + (drv.size
+    ? ` Drivers ${[...drv].join("+")} cross on ${cells.length} unbuilt pattern cell${cells.length === 1 ? "" : "s"}` + (help.length ? `; helpers ${help.join(" ")} add extra crossings.` : ".")
+    : help.length ? ` Helpers ${help.join(" ")} only shape the halo and leftovers.` : "");
+  return { emitters, beams, text };
+}
+
+function framesPattern({ r, pattern, ticks, required }, withRoles = false) { // levels 5 and 6
+  const want = [...pattern].filter(([, c]) => c === "M").map(([k]) => k), wantSet = new Set(want);
+  const halo = new Set(want.flatMap((k) => neighbours(unkey(k)).map(([y, x]) => key(y, x))).filter((k) => !wantSet.has(k)));
+  const b = parse(hexagon(r)), frames = [], subs = [];
+  const goal = required ? ` / ${required}` : "";
+  let count = 0, prev = new Map(b);
+  for (const s of ticker(b, r, ticks)) {
+    const ro = withRoles && s.tick ? roles(s, prev, wantSet) : null;
+    const o = { ...s, ...(ro ? { emitters: ro.emitters, beams: ro.beams } : {}), want: wantSet, halo, count, subs: [...subs] };
+    frames.push(snap(b, { ...o, caption: (s.tick ? tickCaption(s) + (ro ? ro.text : "") : `The blue outline is the pattern, the dashed cells are its halo: no other M may touch the pattern.`) + ` Submitted: ${count}${goal}.` }));
+    if (want.every((k) => b.get(k) === "M") && [...halo].every((k) => b.get(k) !== "M")) {
+      count++; subs.push(s.tick);
+      frames.push(snap(b, { ...o, beams: [], counts: null, count, subs: [...subs], submitted: true, marks: new Map(want.map((k) => [k, "submit"])),
+        caption: `<b>Submitted at tick ${s.tick}!</b> All pattern cells are M and the halo holds no M. Submitted: ${count}${goal}.` }));
+      want.forEach((k) => b.set(k, "O"));
+      frames.push(snap(b, { ...o, beams: [], counts: null, count, subs: [...subs], caption: `The pattern cells reset to O; matter outside the pattern stays. Submitted: ${count}${goal}.` }));
+    }
+    prev = new Map(b);
+  }
+  return frames;
+}
+
+// ---------- the five animations + self-checks against the example outputs ----------
+const L2 = loadBoards(DATA.in2), L3 = loadBoards(DATA.in3), L4 = loadPrograms(DATA.in4), L5 = loadTasks(DATA.in5);
+const L6 = loadOrders(DATA.in6), L6P = { reference: loadOutPrograms(DATA.out6), ours: loadOutPrograms(DATA.ours6) };
+const l6task = (i, src) => ({ ...L6[i], ticks: L6P[src][i] });
+const last = (fs) => fs[fs.length - 1];
+const ANIMS = [
+  { id: "l2", title: "Level 2: one beam", text: "An emitter fires straight across the board. Every <code>O</code> and <code>M</code> cell the beam passes becomes <code>M</code>; the beam stops at the first border cell.",
+    items: L2.map((b, i) => `example ${i + 1} (emitter ${boardEmitters(b)[0].d})`), build: (i) => framesL2(L2[i]),
+    check: () => { const exp = outBoards(DATA.out2); return L2.map((b, i) => render(last(framesL2(b)).board) === exp[i]); } },
+  { id: "l3", title: "Level 3: hit counts", text: "All emitters fire at once. A cell crossed by exactly 2 beams becomes <code>M</code>, by 3 or more becomes <code>O</code>, otherwise it stays as it is.",
+    items: L3.map((_, i) => `example ${i + 1}`), build: (i) => framesL3(L3[i]),
+    check: () => { const exp = outBoards(DATA.out3); return L3.map((b, i) => render(last(framesL3(b)).board) === exp[i]); } },
+  { id: "l4", title: "Level 4: a program, tick by tick", text: "Emitter d starts off on corner d of the border ring. Each tick, every emitter runs its command (move, toggle or nothing), then all switched-on emitters fire with the level 3 rule.",
+    items: L4.map((p, i) => `example ${i + 1} (r = ${p.r}, ${p.ticks.length} ticks)`), build: (i) => framesL4(L4[i]),
+    check: () => { const exp = outBoards(DATA.out4); return L4.map((p, i) => render(last(framesL4(p)).board) === exp[i]); } },
+  { id: "l5", title: "Level 5: building and submitting a pattern", text: "After each tick the pattern counts as built when all its <code>M</code> cells are <code>M</code> and no other <code>M</code> touches it. It is then submitted and its cells reset to <code>O</code>.",
+    items: L5.map((p, i) => `example ${i + 1} (${p.ticks.length} ticks)`), build: (i) => framesPattern(L5[i]),
+    check: () => { const exp = DATA.out5.trim().split("\n").map(Number); return L5.map((t, i) => last(framesPattern(t)).count === exp[i]); } },
+  { id: "l6", title: "Level 6: reference vs. our program", text: `Each pattern must be submitted exactly k times, with as few program lines as possible. ` +
+      `<i>reference</i> plays <code>out_level-6_0-example.txt</code> (${L6P.reference.map((p) => p.length).join(" + ")} lines), <i>ours</i> plays what <code>ccc/contest.py</code> prints ` +
+      `(${L6P.ours.map((p) => p.length).join(" + ")} lines). Ringed emitters are the <b>driver pair</b>: their two beams meet on unbuilt pattern cells. The other switched-on emitters are <b>helpers</b> (dashed beams) that add extra crossings, building or clearing the cells around the pattern.`,
+    items: L6.map((o, i) => `pattern ${i + 1} (r = ${o.r}, k = ${o.required})`), sources: ["reference", "ours"],
+    build: (i, src = "reference") => framesPattern(l6task(i, src), true),
+    checks6: () => ["reference", "ours"].flatMap((src) => L6.map((o, i) => {
+      const n = last(framesPattern(l6task(i, src))).count;
+      return { src, i, n, py: PY6[src][i], k: o.required, lines: L6P[src][i].length, ok: n === o.required && n === PY6[src][i] };
+    })),
+    check() { return this.checks6().map((c) => c.ok); } },
+];
+function selfCheck() { return ANIMS.map((a) => ({ id: a.id, results: a.check() })); }
+if (typeof module !== "undefined") module.exports = { selfCheck, ANIMS, render, framesL4, ring, framesPattern, l6task, L6P, PY6 };
+
+// ---------- drawing ----------
+const S = 10, W = Math.sqrt(3) * S; // hex size; doubled-width column step = W / 2, row step = 1.5 S
+const center = ([y, x]) => [x * W / 2, y * 1.5 * S];
+const hexPts = (cx, cy, s) => [0, 1, 2, 3, 4, 5].map((i) => { const a = Math.PI / 180 * (60 * i - 90); return `${(cx + s * Math.cos(a)).toFixed(2)},${(cy + s * Math.sin(a)).toFixed(2)}`; }).join(" ");
+
+function drawFrame(f) {
+  const cells = [...f.board.keys()].map(unkey), xs = cells.map((c) => center(c)[0]), ys = cells.map((c) => center(c)[1]);
+  const pad = S * 1.3, x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+  const vb = `${x0.toFixed(1)} ${y0.toFixed(1)} ${(Math.max(...xs) - x0 + pad).toFixed(1)} ${(Math.max(...ys) - y0 + pad).toFixed(1)}`;
+  let svg = "";
+  for (const [k, c] of f.board) {
+    const [cx, cy] = center(unkey(k)), mark = f.marks.get(k);
+    const cls = ["c", c === "M" ? "M" : c === "O" ? "O" : "B"];
+    if (f.halo && f.halo.has(k) && c !== "*" && !(c in DIRS)) cls.push("halo");
+    if (f.want && f.want.has(k)) cls.push("want");
+    if (mark) cls.push(mark);
+    svg += `<polygon class="${cls.join(" ")}" points="${hexPts(cx, cy, S * 0.93)}"/>`;
+    const n = f.counts && f.counts.get(k);
+    if (n) svg += `<text class="n ${n === 2 ? "two" : n >= 3 ? "many" : c === "M" ? "onM" : ""}" x="${cx}" y="${cy}">${n}</text>`;
+  }
+  for (const bm of f.beams) {
+    const [dy, dx] = DIRS[bm.d], end = bm.path.length ? bm.path[bm.path.length - 1] : bm.cell;
+    const tip = center([end[0] + dy * 0.45, end[1] + dx * 0.45]);
+    const pts = [bm.cell, ...bm.path].map(center).concat([tip]).map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ");
+    svg += `<polyline class="beam ${bm.role || ""}" points="${pts}"/>`;
+  }
+  const byCell = new Map(); // several emitters may share one border cell
+  for (const e of f.emitters) { const k = key(...e.cell); byCell.set(k, [...(byCell.get(k) || []), e]); }
+  for (const es of byCell.values()) es.forEach((e, i) => {
+    let [cx, cy] = center(e.cell);
+    if (es.length > 1) { const a = 2 * Math.PI * i / es.length - Math.PI / 2; cx += Math.cos(a) * S * 0.42; cy += Math.sin(a) * S * 0.42; }
+    svg += `<g class="em ${e.on ? "" : "off"} ${e.role || ""}"><circle cx="${cx}" cy="${cy}" r="${es.length > 1 ? S * 0.38 : S * 0.5}"/><text x="${cx}" y="${cy}">${e.d}</text></g>`;
+  });
+  return { vb, svg };
+}
+
+function mount(a, checks) {
+  const sec = document.createElement("section");
+  const ok = checks.every(Boolean);
+  sec.innerHTML = `<div class="head"><h2>${a.title}</h2>
+    <span class="badge ${ok ? "ok" : "bad"}" title="final state vs. the expected example output">${ok ? "✓" : "✗"} ${checks.filter(Boolean).length}/${checks.length} match example</span></div>
+    <p class="note">${a.text}</p>
+    ${a.sources ? `<div class="controls">
+      <span class="seg" role="group" aria-label="program">${a.sources.map((s, i) => `<button data-src="${s}" aria-pressed="${i === 0}">${s}</button>`).join("")}</span>
+      <select>${a.items.map((t, i) => `<option value="${i}">${t}</option>`).join("")}</select>
+      <span class="badge pbadge"></span></div>
+      <div class="prog"><span class="lines"></span><span class="subline"></span></div>` : ""}
+    <svg class="board" role="img" aria-label="${a.title}"></svg>
+    ${a.sources ? `<svg class="timeline" preserveAspectRatio="none" aria-label="ticks with submissions"></svg>` : ""}
+    <div class="caption" aria-live="polite"></div>
+    <div class="controls">
+      ${a.items && !a.sources ? `<select>${a.items.map((t, i) => `<option value="${i}">${t}</option>`).join("")}</select>` : ""}
+      <button data-a="reset" title="reset">⏮</button><button data-a="back" title="step back">◀</button>
+      <button data-a="play" title="play / pause">▶ play</button><button data-a="step" title="step">▶|</button>
+      <label>speed <input type="range" min="1" max="30" value="5"></label>
+      <span class="status"></span>
+    </div>`;
+  document.getElementById("cards").append(sec);
+  const svg = sec.querySelector("svg"), cap = sec.querySelector(".caption"), status = sec.querySelector(".status");
+  const playBtn = sec.querySelector('[data-a="play"]'), speed = sec.querySelector("input"), sel = sec.querySelector("select");
+  let frames, i = 0, timer = null, src = a.sources && a.sources[0], idx = 0, info = null;
+  const tl = sec.querySelector("svg.timeline");
+  const drawTimeline = (f) => { // one slot per tick; green bars = submissions, yellow = current tick
+    const T = last(frames).tick, w = 1000 / (T + 1), all = last(frames).subs;
+    let s = `<rect class="tl-bg" x="0" y="0" width="1000" height="20"/>`;
+    s += all.map((t) => `<rect class="tl-sub ${f.subs.includes(t) ? "" : "later"}" x="${(t * w).toFixed(2)}" y="2" width="${Math.max(w, 3).toFixed(2)}" height="16"/>`).join("");
+    s += `<rect class="tl-cur" x="${(f.tick * w).toFixed(2)}" y="0" width="${Math.max(w, 2).toFixed(2)}" height="20"/>`;
+    tl.setAttribute("viewBox", "0 0 1000 20"); tl.innerHTML = s;
+  };
+  const draw = () => {
+    const f = frames[i], { vb, svg: inner } = drawFrame(f);
+    svg.setAttribute("viewBox", vb); svg.innerHTML = inner; cap.innerHTML = f.caption;
+    const maxTick = last(frames).tick;
+    status.textContent = (f.tick != null ? `tick ${f.tick}/${maxTick}` : `frame ${i + 1}/${frames.length}`) + (f.count != null ? ` · ✓ ${f.count}` : "");
+    if (info) {
+      const at = f.subs.length ? ` at tick ${f.subs[f.subs.length - 1]}` : "";
+      sec.querySelector(".subline").innerHTML = `<span class="${f.submitted ? "flash" : ""}">Submitted ${f.count}/${info.k}${at}</span>`;
+      drawTimeline(f);
+    }
+  };
+  const stop = () => { clearTimeout(timer); timer = null; playBtn.textContent = "▶ play"; };
+  const go = (j) => { i = Math.max(0, Math.min(frames.length - 1, j)); draw(); };
+  const tick = () => { if (i >= frames.length - 1) return stop(); go(i + 1); timer = setTimeout(tick, 1000 / speed.value); };
+  const load = (k) => {
+    stop(); idx = k; frames = a.build(k, src);
+    if (a.sources) {
+      info = a.checks6().find((c) => c.src === src && c.i === k);
+      const other = a.checks6().find((c) => c.src !== src && c.i === k);
+      sec.querySelector(".lines").textContent = `${info.lines} lines (${other.src}: ${other.lines})`;
+      const pb = sec.querySelector(".pbadge");
+      pb.className = `badge pbadge ${info.ok ? "ok" : "bad"}`;
+      pb.textContent = `${info.ok ? "✓" : "✗"} JS ${info.n} = Python ${info.py} = k ${info.k}`.replace(/=/g, info.ok ? "=" : "vs");
+      pb.title = "submissions counted by this page's simulation vs. ccc.contest.run5 vs. the required k";
+      sec.querySelectorAll("[data-src]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.src === src));
+    }
+    go(0);
+  };
+  sec.querySelectorAll("[data-src]").forEach((b) => b.onclick = () => { src = b.dataset.src; load(idx); });
+  if (tl) tl.onclick = (ev) => { // jump to the clicked tick
+    const r = tl.getBoundingClientRect(), T = last(frames).tick, t = Math.floor((ev.clientX - r.left) / r.width * (T + 1));
+    stop(); go(frames.findIndex((f) => f.tick >= t));
+  };
+  sec.querySelector('[data-a="reset"]').onclick = () => { stop(); go(0); };
+  sec.querySelector('[data-a="back"]').onclick = () => { stop(); go(i - 1); };
+  sec.querySelector('[data-a="step"]').onclick = () => { stop(); go(i + 1); };
+  playBtn.onclick = () => { if (timer) return stop(); if (i >= frames.length - 1) go(0); playBtn.textContent = "❚❚ pause"; timer = setTimeout(tick, 1000 / speed.value); };
+  if (sel) sel.onchange = () => load(+sel.value);
+  load(0);
+}
+
+if (typeof document !== "undefined") {
+  const sw = (cls, extra = "") => `<svg viewBox="-11 -11 22 22"><polygon class="c ${cls}" points="${hexPts(0, 0, 9)}" ${extra}/></svg>`;
+  document.getElementById("legend").innerHTML = [
+    [sw("O"), "O empty"], [sw("M"), "M matter"], [sw("B"), "border"],
+    [`<svg viewBox="-11 -11 22 22"><g class="em"><circle r="8"/><text>1</text></g></svg>`, "emitter (grey = off)"],
+    [`<svg viewBox="-11 -11 22 22"><line class="beam" x1="-10" y1="0" x2="10" y2="0"/></svg>`, "beam"],
+    [sw("O made"), "created"], [sw("O killed"), "destroyed"], [sw("O want"), "pattern"], [sw("O halo"), "halo"],
+  ].map(([icon, t]) => `<span>${icon}${t}</span>`).join("");
+  const checks = selfCheck();
+  ANIMS.forEach((a, i) => mount(a, checks[i].results));
+}
+</script>
+</body>
+</html>
