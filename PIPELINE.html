@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level 6 Pipeline</title>
+<style>
+:root {
+  --bg: #f5f4ef; --card: #ffffff; --fg: #1d1d1b; --muted: #6b6a64; --line: #dedbd2;
+  --cell: #ebe8df; --rim: #c9c5b8; --matter: #34384a;
+  --beam: #e5a400; --ok: #2b8a3e; --bad: #d6336c; --want: #1971c2; --submit: #40c057;
+  --chord: #ffe8a3; --ghost: #7950f2; --s-base: #c2610c; --s-cyc: #2f6fdb;
+  --pA: #d0ebff; --pB: #ffe3e3; --pC: #e6fcf5; --pS: #f1f3f5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417; --card: #1c1d22; --fg: #ececea; --muted: #9a9aa2; --line: #2e3038;
+    --cell: #272932; --rim: #3a3d48; --matter: #d9dce4;
+    --beam: #ffd400; --ok: #69db7c; --bad: #f783ac; --want: #74c0fc; --submit: #51cf66;
+    --chord: #5c4d12; --ghost: #b197fc; --s-base: #c46f22; --s-cyc: #5b93ec;
+    --pA: #1c3a57; --pB: #4f2530; --pC: #1d4237; --pS: #2a2c33;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 0; }
+p { margin: 6px 0; }
+.lead, .note { color: var(--muted); }
+code, .mono { font: 0.88em ui-monospace, "Cascadia Code", Consolas, monospace; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 18px; }
+.head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.badge { margin-left: auto; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.badge.ok { color: var(--ok); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.controls label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 0.85rem; }
+button { font: inherit; font-size: 0.9rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+input[type=range] { width: 200px; accent-color: var(--beam); }
+.status { font: 0.85rem ui-monospace, Consolas, monospace; color: var(--muted); }
+.cap { font-size: 0.93rem; min-height: 2.6em; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.side { border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 0.85rem; overflow-x: auto; }
+.side pre { margin: 6px 0; font: 0.78rem/1.35 ui-monospace, Consolas, monospace; white-space: pre; }
+svg { display: block; width: 100%; height: auto; }
+.axis { fill: var(--muted); font: 11px system-ui, sans-serif; }
+.gridl { stroke: var(--line); stroke-width: 1; }
+.ln { fill: none; stroke-width: 2; }
+.dl { font: 12px system-ui, sans-serif; fill: var(--fg); }
+.box { fill: var(--bg); stroke: var(--line); stroke-width: 1.2; }
+.box.hot { stroke: var(--beam); stroke-width: 2; }
+.bt { font: 12px system-ui, sans-serif; fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+.bs { font: 10px system-ui, sans-serif; fill: var(--muted); text-anchor: middle; dominant-baseline: central; }
+.arrow { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#ah); }
+.tl { display: flex; gap: 2px; margin: 8px 0 2px; flex-wrap: wrap; }
+.tl span { width: 16px; height: 22px; border-radius: 3px; position: relative; transition: background 0.3s, opacity 0.3s; }
+.tl .A { background: var(--pA); } .tl .B { background: var(--pB); } .tl .C { background: var(--pC); }
+.tl .win { outline: 2px solid var(--beam); outline-offset: -2px; }
+.tl .new { background: var(--chord); }
+.tl .sub::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--submit); }
+.tlkey { font-size: 0.8rem; color: var(--muted); }
+.sw2 { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; margin: 0 4px 0 8px; border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>Level 6 pipeline, as it runs now</h1>
+<p class="lead">How the best programs are produced in the last hour of the contest: a Rust beam search builds them, two CP-SAT polishers shorten them, and a harvest loop keeps the shortest valid program per item. Companion to <code>STRATEGIES.html</code> (the cycle players) and <code>DOCS.html</code> &sect;7.11&ndash;7.12. The numbers are from the real runs; the animations are schematic.</p>
+
+<section id="p1">
+  <div class="head"><h2>1 · The Rust beam</h2><span class="badge ok">ccc1 + ccc2</span></div>
+  <p class="note">A <b>state</b> is the six emitters (offset, on/off), the matter on the zone cells (pattern + halo, as <code>u64</code> bitsets) and the submissions done so far. Each tick, every kept state tries all 4<sup>6</sup> = <b>4096</b> commands (F/B/T/- per emitter, about 100M combos per second per thread). Each child is scored, and only the best <b>W</b> survive to the next tick.</p>
+  <div class="grid2">
+    <div>
+      <svg id="p1svg" viewBox="0 0 400 230" role="img" aria-label="beam search expanding states tick by tick"></svg>
+      <div class="controls"><button id="p1play" aria-pressed="true">pause</button><button id="p1seed">new seed</button><span class="status" id="p1stat"></span></div>
+    </div>
+    <div class="side">
+      <b>score(child)</b>
+      <pre>  done  &middot; BIG          submissions first
++ built               pattern cells that are M
+&minus; 1000 &middot; bad_halo    stray M next to the pattern
++ mu &middot; potential       emitters near chords rich
+                      in unbuilt cells (beta, gamma)</pre>
+      <p>Without the potential (mu = 0) the beam is about 2.5&times; worse. Each item gets several runs: <code>big</code> and <code>default</code> weights at each width, then <b>random weight restarts</b> with fresh seeds until its time budget (150&ndash;400 s) runs out. A program is kept only if it is strictly shorter than the best set and passes <code>valid</code>.</p>
+      <p class="status" id="p1w"></p>
+    </div>
+  </div>
+  <div class="controls"><label>beam width W <input type="range" id="p1W" min="0" max="1000" value="550"></label><span class="status" id="p1Wv"></span></div>
+  <svg id="p1chart" viewBox="0 0 600 200" role="img" aria-label="lines versus beam width"></svg>
+  <p class="cap note" id="p1cap"></p>
+</section>
+
+<section id="p2">
+  <div class="head"><h2>2 · The polishers</h2><span class="badge ok">ccc1</span></div>
+  <p class="note">The beam's programs are good but not tight. Two exact CP-SAT passes take a program and look for a shorter one that does the same job. After each submission the zone (pattern + halo) is all <code>O</code>, so a copy depends only on the emitter state it starts from, and pieces can be swapped independently.</p>
+  <div class="controls"><button id="p2lns" aria-pressed="true">windowed LNS</button><button id="p2chain" aria-pressed="false">exact chain</button><button id="p2go">play</button><span class="status" id="p2stat"></span></div>
+  <div class="tl" id="p2tl"></div>
+  <div class="tlkey"><span class="sw2" style="background:var(--pA)"></span>copy 1<span class="sw2" style="background:var(--pB)"></span>copy 2<span class="sw2" style="background:var(--pC)"></span>copy 3<span class="sw2" style="outline:2px solid var(--beam);outline-offset:-2px"></span>window being re-solved<span class="sw2" style="background:var(--chord)"></span>new shorter ticks &bull; green dot = submission</div>
+  <p class="cap" id="p2cap"></p>
+</section>
+
+<section id="p3">
+  <div class="head"><h2>3 · The harvest loop</h2><span class="badge ok">every 5 min near the end</span></div>
+  <p class="note">Every run writes full candidate files (one program per item) into <code>~/scratch/l6_*/out/</code>. <code>harvest6.sh</code> pulls them from both boxes, <code>merge6</code> keeps the shortest program per item that passes <code>valid6</code> (the current best set is always a candidate, so it only ever improves), and the new <code>best6</code> is pushed back. The runs take it as their base for the next pass.</p>
+  <svg id="p3svg" viewBox="0 0 640 300" role="img" aria-label="harvest loop between the boxes and the local best set"></svg>
+  <table>
+    <thead><tr><th>box</th><th>run</th><th>what it does</th></tr></thead>
+    <tbody>
+      <tr><td>ccc1</td><td><code>l6_rust</code></td><td>Rust beam on enormous and large, W 1600/6400 and 3000/12000 on the top items</td></tr>
+      <tr><td>ccc1</td><td><code>l6_cpsat</code></td><td>CP-SAT windowed LNS, passes in a loop, about 120 s per item</td></tr>
+      <tr><td>ccc1</td><td><code>l6_ilp</code></td><td>exact chain mode on enormous (two runners, smallest-first and largest-first)</td></tr>
+      <tr><td>ccc2</td><td><code>l6_rust/loop.sh</code></td><td>Rust loop: the top 60 items by line count, new seed each pass, merges after every pass</td></tr>
+      <tr><td>ccc2</td><td><code>l6_rustmed</code></td><td>Rust beam on <b>medium</b> (new): 60 lines in its first 2 minutes</td></tr>
+      <tr><td>ccc2</td><td><code>l6_rustc</code></td><td>experiment: the beam with a chord-mode bonus (opposite pair fills a chord, halo punctured)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="p4">
+  <div class="head"><h2>4 · Score over the last hour</h2></div>
+  <p class="note">Scored total (medium + large + enormous) after each harvest, UTC. Lower is better. Hover or tap for values.</p>
+  <svg id="p4svg" viewBox="0 0 600 240" role="img" aria-label="scored total over time"></svg>
+  <p class="cap" id="p4tip">Hover or tap the chart for values.</p>
+  <p class="note">Dead ends along the way: A*/IDA* (branching 1000&ndash;2000), sculpture (sweep, then carve), simulated annealing (plateaus), collinear line sweeps (fail on holey shapes). Not tried yet: a chord-cover constructor, estimated at &minus;1000 to &minus;1700 on enormous.</p>
+</section>
+</main>
+<script>
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let seed = 7;
+const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+
+// ---------- 1: beam ----------
+const p1 = document.getElementById("p1svg");
+const COLS = 5, SHOW = 6; // ticks shown, kept states drawn per tick
+let p1tick = 0, p1timer = null;
+function drawBeam() {
+  p1.innerHTML = "";
+  const colX = (t) => 30 + t * 85, rowY = (i) => 25 + i * 34;
+  for (let t = 0; t <= Math.min(p1tick, COLS - 1); t++) {
+    el("text", { x: colX(t), y: 12, class: "axis", "text-anchor": "middle" }, p1).textContent = "tick " + t;
+    const n = t === 0 ? 1 : SHOW;
+    for (let i = 0; i < n; i++) {
+      const y = t === 0 ? rowY(2.5) : rowY(i);
+      if (t > 0 && t <= p1tick) {
+        // fan from a parent of the previous tick
+        const pi = t === 1 ? 2.5 : Math.floor(rnd() * SHOW);
+        el("line", { x1: colX(t - 1) + 8, y1: rowY(pi), x2: colX(t) - 8, y2: y, stroke: css("--rim"), "stroke-width": 1 }, p1);
+      }
+      el("circle", { cx: colX(t), cy: y, r: 7, fill: css(i === 0 && t > 0 ? "--beam" : "--matter") }, p1);
+    }
+  }
+  // the expansion of the current column
+  const t = Math.min(p1tick, COLS - 1);
+  if (p1tick > 0) {
+    const x0 = colX(t) + 14;
+    for (let j = 0; j < 40; j++) {
+      const y = 20 + rnd() * 190;
+      el("circle", { cx: x0 + 18 + rnd() * 22, cy: y, r: 1.6, fill: css("--rim") }, p1);
+    }
+    el("text", { x: x0 + 30, y: 224, class: "axis", "text-anchor": "middle" }, p1).textContent = "W×4096";
+  }
+  document.getElementById("p1stat").textContent =
+    `tick ${p1tick}: ${(p1tick ? curW() * 4096 : 1).toLocaleString()} children scored, best ${curW().toLocaleString()} kept (seed ${seed % 1000})`;
+}
+function stepBeam() { p1tick = (p1tick + 1) % (COLS + 2); drawBeam(); }
+function playBeam(on) {
+  clearInterval(p1timer);
+  if (on) p1timer = setInterval(stepBeam, 900);
+  const b = document.getElementById("p1play");
+  b.setAttribute("aria-pressed", on); b.textContent = on ? "pause" : "play";
+}
+document.getElementById("p1play").onclick = (e) => playBeam(e.target.getAttribute("aria-pressed") !== "true");
+document.getElementById("p1seed").onclick = () => { seed = Math.floor(Math.random() * 1e6); p1tick = 0; drawBeam(); };
+
+// W slider (log scale 25..12000) and the measured scaling on a 15-item sample
+const MEAS = [[25, 500], [100, 482], [400, 439], [1600, 423], [6400, 423 * 153 / 159]];
+const sliderToW = (v) => Math.round(25 * Math.pow(12000 / 25, v / 1000));
+const curW = () => sliderToW(+document.getElementById("p1W").value);
+function linesAt(w) {
+  const lw = Math.log(w);
+  for (let i = 0; i < MEAS.length - 1; i++) {
+    const [a, la] = MEAS[i], [b, lb] = MEAS[i + 1];
+    if (w <= b) return la + (lb - la) * (lw - Math.log(a)) / (Math.log(b) - Math.log(a));
+  }
+  return MEAS[MEAS.length - 1][1];
+}
+function drawW() {
+  const svg = document.getElementById("p1chart"); svg.innerHTML = "";
+  const X = (w) => 50 + (Math.log(w) - Math.log(25)) / (Math.log(12000) - Math.log(25)) * 520;
+  const Y = (l) => 170 - (l - 395) / (505 - 395) * 150;
+  for (const l of [400, 425, 450, 475, 500]) {
+    el("line", { x1: 50, x2: 570, y1: Y(l), y2: Y(l), class: "gridl" }, svg);
+    el("text", { x: 44, y: Y(l) + 4, class: "axis", "text-anchor": "end" }, svg).textContent = l;
+  }
+  for (const w of [25, 100, 400, 1600, 6400, 12000])
+    el("text", { x: X(w), y: 188, class: "axis", "text-anchor": "middle" }, svg).textContent = "W " + w;
+  el("path", { d: MEAS.map(([w, l], i) => (i ? "L" : "M") + X(w) + " " + Y(l)).join(""), class: "ln", stroke: css("--s-cyc") }, svg);
+  for (const [w, l] of MEAS) el("circle", { cx: X(w), cy: Y(l), r: 4, fill: css("--s-cyc") }, svg);
+  const w = curW(), l = linesAt(w);
+  el("line", { x1: X(w), x2: X(w), y1: 18, y2: 172, stroke: css("--beam"), "stroke-dasharray": "3 3" }, svg);
+  el("circle", { cx: X(w), cy: Y(l), r: 5, fill: css("--beam") }, svg);
+  document.getElementById("p1Wv").textContent = `W = ${w.toLocaleString()}`;
+  document.getElementById("p1cap").textContent =
+    `15-item sample: W ${w.toLocaleString()} gives about ${Math.round(l)} lines${w > 6400 ? " (beyond 6400 not measured on this sample)" : ""}. ` +
+    "Measured: W 25/100/400/1600 → 500/482/439/423; on 10 items W 6400 gave 153 vs 159 at W 1600 (shown scaled). Wider keeps winning, so the search is compute-bound, which is why it is in Rust.";
+  document.getElementById("p1w").textContent = `one tick at W ${w.toLocaleString()}: ${(w * 4096).toLocaleString()} children ≈ ${(w * 4096 / 1e8).toFixed(2)} s on one thread`;
+  drawBeam();
+}
+document.getElementById("p1W").oninput = drawW;
+
+// ---------- 2: polishers ----------
+// a toy program: 3 copies, copy lengths 14/11/12, submissions at the end of each copy
+const COPIES = [14, 11, 12];
+let p2mode = "lns", p2timer = null;
+function baseProg() {
+  const out = [];
+  COPIES.forEach((n, c) => { for (let i = 0; i < n; i++) out.push({ c: "ABC"[c], sub: i === n - 1 }); });
+  return out;
+}
+let prog = baseProg();
+function drawTl(win = null, fresh = new Set()) {
+  const tl = document.getElementById("p2tl"); tl.innerHTML = "";
+  prog.forEach((t, i) => {
+    const s = document.createElement("span");
+    s.className = (fresh.has(i) ? "new" : t.c) + (t.sub ? " sub" : "") + (win && i >= win[0] && i < win[1] ? " win" : "");
+    tl.appendChild(s);
+  });
+  document.getElementById("p2stat").textContent = `${prog.length} lines`;
+}
+function setMode(m) {
+  p2mode = m; clearTimeout(p2timer);
+  document.getElementById("p2lns").setAttribute("aria-pressed", m === "lns");
+  document.getElementById("p2chain").setAttribute("aria-pressed", m === "chain");
+  prog = baseProg(); drawTl();
+  document.getElementById("p2cap").textContent = m === "lns"
+    ? "Windowed LNS: cut a 16- or 24-tick window, fix the ticks before and after (so the start and end emitter states are fixed), and ask CP-SAT for the shortest replacement, hinted with the current window. A shorter window splices straight in. Windows slide over the program; 120 s per item pays off, 30 s does not."
+    : "Exact chain: copy 1 stays; every later copy is re-solved by CP-SAT as the shortest rebuild from the emitter state the previous copy left behind. Copies are independent because the zone is clean after a submission, so each one is a small exact problem.";
+}
+function play() {
+  setMode(p2mode);
+  const steps = [];
+  if (p2mode === "lns") {
+    // window [10, 26) of 16 ticks -> re-solved in 13 ticks, then window [20, 36) -> 14
+    steps.push(() => drawTl([10, 26]), () => splice(10, 26, 13, [10, 26]), () => drawTl([20, 34]), () => splice(20, 34, 12, [20, 34]));
+  } else {
+    let start = COPIES[0];
+    steps.push(() => drawTl([start, start + COPIES[1]]), () => splice(start, start + COPIES[1], 8, null));
+    steps.push(() => { const s = COPIES[0] + 8; drawTl([s, s + COPIES[2]]); }, () => { const s = COPIES[0] + 8; splice(s, s + COPIES[2], 10, null); });
+  }
+  let i = 0;
+  const next = () => { if (i < steps.length) { steps[i++](); p2timer = setTimeout(next, 1100); } };
+  next();
+}
+function splice(a, b, n, win) {
+  const c = prog[a].c, fresh = new Set();
+  const repl = Array.from({ length: n }, (_, j) => ({ c, sub: prog[b - 1].sub && j === n - 1 }));
+  // keep submissions inside the window at proportional positions
+  prog.slice(a, b).forEach((t, j) => { if (t.sub) repl[Math.min(n - 1, Math.round(j * n / (b - a)))].sub = true; });
+  prog.splice(a, b - a, ...repl);
+  for (let j = a; j < a + n; j++) fresh.add(j);
+  drawTl(null, fresh);
+  document.getElementById("p2stat").textContent = `${prog.length} lines (window ${b - a} → ${n} ticks)`;
+}
+document.getElementById("p2lns").onclick = () => setMode("lns");
+document.getElementById("p2chain").onclick = () => setMode("chain");
+document.getElementById("p2go").onclick = play;
+
+// ---------- 3: loop ----------
+function drawLoop() {
+  const svg = document.getElementById("p3svg"); svg.innerHTML = "";
+  const defs = el("defs", {}, svg);
+  const m = el("marker", { id: "ah", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+  el("path", { d: "M0 0 L10 5 L0 10 z", fill: css("--muted") }, m);
+  const box = (x, y, w, h, t, s, hot) => {
+    el("rect", { x, y, width: w, height: h, rx: 8, class: "box" + (hot ? " hot" : "") }, svg);
+    el("text", { x: x + w / 2, y: y + (s ? h / 2 - 7 : h / 2), class: "bt" }, svg).textContent = t;
+    if (s) el("text", { x: x + w / 2, y: y + h / 2 + 9, class: "bs" }, svg).textContent = s;
+  };
+  // boxes: runs on each machine
+  el("text", { x: 10, y: 16, class: "axis" }, svg).textContent = "ccc1 (32 cores)";
+  box(10, 24, 140, 38, "Rust beam", "enormous + large", true);
+  box(10, 68, 140, 38, "CP-SAT LNS", "16/24-tick windows");
+  box(10, 112, 140, 38, "exact chain", "enormous");
+  el("text", { x: 10, y: 172, class: "axis" }, svg).textContent = "ccc2 (32 cores)";
+  box(10, 180, 140, 38, "Rust loop", "top 60 items", true);
+  box(10, 224, 140, 30, "Rust beam medium", null, true);
+  box(10, 260, 140, 30, "chord-bonus beam", null);
+  box(200, 120, 110, 50, "out/ files", "~/scratch/l6_*/out");
+  box(350, 120, 110, 50, "harvest6.sh", "pull both boxes");
+  box(500, 120, 120, 50, "merge6", "shortest valid6 / item");
+  box(500, 230, 120, 50, "best6", "upload this", true);
+  for (const y of [43, 87, 131, 199, 239, 275]) el("path", { d: `M150 ${y} C 180 ${y}, 175 145, 198 145`, class: "arrow" }, svg);
+  el("path", { d: "M310 145 L348 145", class: "arrow" }, svg);
+  el("path", { d: "M460 145 L498 145", class: "arrow" }, svg);
+  el("path", { d: "M560 170 L560 228", class: "arrow" }, svg);
+  const back = el("path", { d: "M500 255 C 330 255, 330 10, 152 10", class: "arrow", "stroke-dasharray": "4 3" }, svg);
+  el("text", { x: 330, y: 40, class: "bs" }, svg).textContent = "re-sync best6: the next pass starts from it";
+  // a packet travelling round the loop
+  const dot = el("circle", { r: 5, fill: css("--beam") }, svg);
+  const path = el("path", { d: "M150 43 C 180 43, 175 145, 198 145 L 620 145 L 560 145 L 560 255 C 330 255, 330 10, 152 10 L 150 43", fill: "none", stroke: "none" }, svg);
+  const len = path.getTotalLength();
+  let t0 = null;
+  const anim = (ts) => {
+    if (t0 === null) t0 = ts;
+    const p = path.getPointAtLength(((ts - t0) / 6000 % 1) * len);
+    dot.setAttribute("cx", p.x); dot.setAttribute("cy", p.y);
+    requestAnimationFrame(anim);
+  };
+  requestAnimationFrame(anim);
+}
+
+// ---------- 4: score chart ----------
+const SCORES = [["16:07", 15062], ["16:13", 15015], ["16:22", 14965], ["16:29", 14942], ["16:35", 14875]];
+const LEADER = 14600;
+function drawScore() {
+  const svg = document.getElementById("p4svg"); svg.innerHTML = "";
+  const mins = (s) => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  const X = (t) => 60 + (mins(t) - mins("16:05")) / (mins("17:00") - mins("16:05")) * 510;
+  const Y = (v) => 20 + (15100 - v) / (15100 - 14550) * 190;
+  for (const v of [14600, 14700, 14800, 14900, 15000, 15100]) {
+    el("line", { x1: 60, x2: 570, y1: Y(v), y2: Y(v), class: "gridl" }, svg);
+    el("text", { x: 54, y: Y(v) + 4, class: "axis", "text-anchor": "end" }, svg).textContent = v;
+  }
+  for (const t of ["16:10", "16:20", "16:30", "16:40", "16:50", "17:00"])
+    el("text", { x: X(t), y: 230, class: "axis", "text-anchor": "middle" }, svg).textContent = t;
+  el("line", { x1: 60, x2: 570, y1: Y(LEADER), y2: Y(LEADER), stroke: css("--bad"), "stroke-dasharray": "5 4", "stroke-width": 1.5 }, svg);
+  el("text", { x: 566, y: Y(LEADER) - 6, class: "dl", "text-anchor": "end" }, svg).textContent = "leader 14600";
+  el("line", { x1: X("17:00"), x2: X("17:00"), y1: 20, y2: 212, stroke: css("--muted"), "stroke-dasharray": "3 3" }, svg);
+  el("path", { d: SCORES.map(([t, v], i) => (i ? "L" : "M") + X(t) + " " + Y(v)).join(""), class: "ln", stroke: css("--s-cyc") }, svg);
+  const tip = document.getElementById("p4tip");
+  SCORES.forEach(([t, v], i) => {
+    const c = el("circle", { cx: X(t), cy: Y(v), r: 5, fill: css("--s-cyc"), stroke: css("--card"), "stroke-width": 2 }, svg);
+    const show = () => { tip.textContent = `${t} UTC: ${v}` + (i ? ` (−${SCORES[i - 1][1] - v} since ${SCORES[i - 1][0]})` : " (last upload of the previous session)"); };
+    c.addEventListener("mouseenter", show); c.addEventListener("click", show);
+  });
+  const [lt, lv] = SCORES[SCORES.length - 1];
+  el("text", { x: X(lt) + 8, y: Y(lv) - 8, class: "dl" }, svg).textContent = lv;
+}
+
+drawW(); playBeam(true); setMode("lns"); drawLoop(); drawScore();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawW(); drawLoop(); drawScore(); });
+</script>
+</body>
+</html>

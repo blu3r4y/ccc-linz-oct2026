@@ -38,9 +38,12 @@ Locations:
 → 17690 (CP-SAT medium)
 → 16874 (exact chain on large)
 → 15621 (Rust beam on large)
-→ … → **15250** (wide beams, CP-SAT LNS, chain).
+→ … → 15250 (wide beams, CP-SAT LNS, chain)
+→ 15062 (16:07 UTC)
+→ 14942 (Rust beams on both boxes + CP-SAT LNS)
+→ **14783** (final; Rust beam on medium for the first time: 5969 → 5835).
 
-The leader was at 14725 when the contest was closing.
+The leader was at 14600 at 16:07 UTC.
 
 ## Approaches
 

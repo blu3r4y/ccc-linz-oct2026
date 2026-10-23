@@ -203,16 +203,33 @@ return two &amp; ~many, many   # exactly 2, 3+</pre>
 
 <section id="p6">
   <div class="head"><h2>6 · Scoreboard so far</h2></div>
-  <p class="note">Total program lines per input file (lower is better). These numbers come from the coordinator's runs of the full solver, not from this page.</p>
+  <p class="note">Total program lines per input file (lower is better). These numbers come from the coordinator's runs of the full solver, not from this page. Best set as of 16:22 UTC; only medium, large and enormous are scored.</p>
   <table>
-    <thead><tr><th>file</th><th>baseline</th><th>current best</th><th>saved</th></tr></thead>
+    <thead><tr><th>file</th><th>baseline</th><th>portfolio</th><th>current best</th><th>saved</th></tr></thead>
     <tbody>
-      <tr><td>small</td><td>174</td><td>109</td><td>&minus;37%</td></tr>
-      <tr><td>medium</td><td>11305</td><td>9389</td><td>&minus;17%</td></tr>
-      <tr><td>large</td><td>9773</td><td>pending</td><td>&ndash;</td></tr>
-      <tr><td>enormous</td><td>7790</td><td>pending</td><td>&ndash;</td></tr>
+      <tr><td>small <span class="note">(not scored)</span></td><td>174</td><td>109</td><td>109</td><td>&minus;37%</td></tr>
+      <tr><td>medium</td><td>11305</td><td>9389</td><td>5969</td><td>&minus;47%</td></tr>
+      <tr><td>large</td><td>9773</td><td>&ndash;</td><td>4754</td><td>&minus;51%</td></tr>
+      <tr><td>enormous</td><td>7790</td><td>&ndash;</td><td>4242</td><td>&minus;46%</td></tr>
+      <tr><td><b>scored total</b></td><td>28868</td><td>&ndash;</td><td><b>14965</b></td><td>&minus;48%</td></tr>
     </tbody>
   </table>
+  <p class="note">History: 28624 (frames) &rarr; 27029 (cycles) &rarr; 24386 (accumulation) &rarr; 21450 (lookahead greedy) &rarr; 17931 (numpy beam) &rarr; 16874 (exact chain) &rarr; 15621 (Rust beam) &rarr; 15062 &rarr; 15015 &rarr; <b>14965</b>. The leader was at 14600.</p>
+</section>
+
+<section id="p7">
+  <div class="head"><h2>7 · Beyond cycles: the settled pipeline</h2><span class="badge ok">running</span></div>
+  <p class="note">The cycle players above seed medium. Every file's best programs now come from a remote search loop, one constructor and two polishers. Each stage keeps the current program unless it finds a strictly shorter one that passes <code>valid6</code>.</p>
+  <table>
+    <thead><tr><th>stage</th><th>idea</th><th>where</th></tr></thead>
+    <tbody>
+      <tr><td><b>Rust beam</b></td><td style="text-align:left">Beam search over ticks. A state is the emitter offsets and on flags plus the zone matter (pattern + halo) in <code>u64</code> bitsets. Every state tries all 4<sup>6</sup> = 4096 commands (~100M/s/thread). Score = submissions &middot; 10<sup>6</sup> + built cells &minus; stray halo <code>M</code> + a potential for emitters near chords rich in unbuilt cells. Widths 1600&ndash;12000, with random weight restarts per item.</td><td>ccc1 + ccc2</td></tr>
+      <tr><td><b>Exact chain</b></td><td style="text-align:left">CP-SAT re-solves every copy after the first as the shortest rebuild from the emitter state the previous copy left. This works because the zone is clean after each submission.</td><td>ccc1</td></tr>
+      <tr><td><b>Windowed LNS</b></td><td style="text-align:left">CP-SAT re-solves 16- and 24-tick windows of the best program, hinted, with fixed start and end states, so a shorter window splices straight in. About 120 s per item.</td><td>ccc1</td></tr>
+      <tr><td><b>Harvest + merge</b></td><td style="text-align:left">Pull every run's outputs from both boxes and keep the shortest valid program per item (best6). Push best6 back so the next passes start from it.</td><td>local</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Dead ends: A*/IDA*, sculpture (sweep then carve), simulated annealing, collinear line sweeps. Rust exists because the search is compute-bound: wider beams keep winning, and Rust is 37&times; (simulator) to 150&ndash;190&times; (combo evaluation) faster than Python.</p>
 </section>
 </main>
 <script>

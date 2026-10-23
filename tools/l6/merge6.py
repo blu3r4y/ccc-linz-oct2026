@@ -8,14 +8,13 @@ merge only ever improves. Each candidate program is validated with valid6;
 invalid ones are skipped and reported. Writes best6/ and prints per-file totals.
 """
 
-import os
 import sys
 from pathlib import Path
 
 from ccc.__main__ import load
 from ccc.contest import valid6
 
-BEST = Path(os.environ.get("BEST6", Path(__file__).parent / "best6"))  # the best set; it only improves
+BEST = Path(__file__).parent / "best6"
 BEST.mkdir(exist_ok=True)
 
 
@@ -56,7 +55,9 @@ for inp in sorted(Path("data").glob("in_level-6_[1-9]*.txt")):
         print(f"{name}: incomplete, not written")
         continue
     after = sum(map(len, best))
-    (BEST / name).write_text("\n\n".join("\n".join(" ".join(t) for t in p) for p in best))
+    tmp = BEST / (name + ".tmp")  # atomic: an interrupted merge never truncates best6
+    tmp.write_text("\n\n".join("\n".join(" ".join(t) for t in p) for p in best))
+    tmp.replace(BEST / name)
     wins = {s: source.count(s) for s in set(source)}
     print(f"{name}: {before if before is not None else '-'} -> {after} lines  {wins}")
     total_before += before or 0

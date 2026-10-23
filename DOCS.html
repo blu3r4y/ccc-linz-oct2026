@@ -287,6 +287,7 @@ submit          #1    #2    #3</code></pre></div></div>
   <tr><td>baseline</td><td class="n">41</td><td class="n">174</td><td class="n">11305</td><td class="n">9773</td><td class="n">7790</td><td class="n">29042</td></tr>
   <tr><td>baseline + frames, per-item min</td><td class="n"></td><td class="n">140</td><td class="n">10924</td><td class="n">9770</td><td class="n">7790</td><td class="n"><b>28624</b></td></tr>
   <tr><td>portfolio <code>program6</code></td><td class="n">23 <span class="note">(ref. 446)</span></td><td class="n">109</td><td class="n">9389</td><td class="n note">running</td><td class="n note">running</td><td class="n"></td></tr>
+  <tr><td>best6: Rust beam + CP-SAT polishers (16:22 UTC)</td><td class="n"></td><td class="n">109</td><td class="n">5969</td><td class="n">4754</td><td class="n">4242</td><td class="n"><b>14965</b> <span class="note">scored</span></td></tr>
   <tr><td class="note">loose lower bound</td><td class="n note"></td><td class="n note"></td><td class="n note">2272</td><td class="n note">1033</td><td class="n note">687</td><td class="n note"></td></tr>
 </table></div>
 <ul>
@@ -302,17 +303,31 @@ submit          #1    #2    #3</code></pre></div></div>
   </li>
 </ul>
 
-<h3>7.11 In progress <span class="tag">remote compute</span></h3>
+<h3>7.11 The settled pipeline <span class="tag done">running</span></h3>
+<p>The portfolio above only seeds the search now. The uploaded programs come from a remote loop of <b>one constructor and two polishers</b>, joined by a per-item merge. Every stage keeps the current best program unless it finds a strictly shorter valid one, so the best set only ever shrinks.</p>
+<pre>  Rust beam  ──►  exact chain (CP-SAT)  ──►  windowed LNS (CP-SAT)
+  (builds)        (rebuilds per copy)        (shaves 2–11 lines)
+       ▲                                          │
+       └──── best6  ◄── merge6 (valid6) ◄── harvest6.sh (both boxes)</pre>
 <table>
-  <tr><th>track</th><th>idea</th></tr>
-  <tr><td>Exact ILP / periodic cycles</td><td>Model one period of <code>m</code> fires (positions, toggles, hit counts, halo) as an ILP and minimise <code>m</code> and then <code>gap</code> exactly, instead of a budgeted enumeration.</td></tr>
-  <tr><td>Local search improver</td><td>Start from the best program and drop, merge or shift ticks and commands. Keep a change when <code>valid6</code> still passes and the program got shorter.</td></tr>
-  <tr><td>Multi-tick accumulation</td><td>Build big patterns over many ticks with cells that persist, using 3+ hits as an eraser for stray <code>M</code>. Aimed at enormous, where k &le; 2.</td></tr>
-  <tr><td>Collinear segments</td><td>Use opposite pairs (full lines) and then cut segments out of them with 3-hit crossings. Blobs are mostly runs of collinear cells.</td></tr>
-  <tr><td>Big-pattern beam search</td><td>Beam or greedy search over fire configs for the large and enormous blobs (5&ndash;31 covering lines), scored by cells built per tick.</td></tr>
-  <tr><td>Tooling study</td><td>CP-SAT, MaxSAT and MILP formulations side by side, and a Rust port of the simulator and searches for a 50&ndash;100&times; speedup.</td></tr>
+  <tr><th>stage</th><th>what it does</th></tr>
+  <tr><td><b>Rust beam</b><br><span class="note">constructor, <code>l6_rust</code></span></td><td>
+    <ul>
+      <li><b>State:</b> 6 emitter offsets plus on flags, the matter on the zone cells (pattern + halo) as <code>u64</code> bitsets, and the submissions done.</li>
+      <li><b>Expand:</b> every state tries all 4<sup>6</sup> = 4096 tick commands, at about 100M combos/s/thread.</li>
+      <li><b>Score:</b> <code>subs&middot;10<sup>6</sup> + built &minus; wd&middot;stray_halo_M + potential</code>. The potential rewards emitters near chords that are rich in unbuilt cells (<code>wp</code>, discounted by distance <code>lam</code>), line fills (<code>wl</code>, minus <code>wlh</code> per halo cell on the line), and being on (<code>won</code>), minus <code>eps</code> per action.</li>
+      <li><b>Runs per item:</b> a "big" preset (<code>wd</code> = 1000, all 4096 children kept per parent) and a default preset at each width, then random weight restarts with new seeds until the time budget runs out. Widths 1600/6400 and 3000/12000, 200&ndash;400 s per item.</li>
+    </ul></td></tr>
+  <tr><td><b>Exact chain</b><br><span class="note">polisher, <code>l6_ilp</code></span></td><td>A time-expanded CP-SAT model of the L5 rules on the zone cells only. Each copy after the first is re-solved as the <b>shortest rebuild from the emitter state the previous copy left</b>, which works because the zone is clean after every submission. The same model gives the lower bound <code>Tfirst* + (k&minus;1)&middot;Pmin*</code>.</td></tr>
+  <tr><td><b>Windowed LNS</b><br><span class="note">polisher, <code>l6_cpsat</code></span></td><td>It takes a best program and re-solves sliding windows of 16 and 24 ticks with CP-SAT, hinted from the current program. Each window starts from the exact (emitter states, zone matter) at its first tick and must end in the same state at a variable tick, so a shorter window splices straight in. About 120 s per item pays off; 30 s does not.</td></tr>
+  <tr><td><b>merge6 + harvest</b><br><span class="note">local</span></td><td><code>harvest6.sh</code> pulls every <code>~/scratch/l6_*/out</code> from both boxes. <code>merge6.py</code> keeps the shortest <code>valid6</code> program per item, with best6 always a candidate. The new best6 goes back to both boxes, and looping runs start their next pass from it.</td></tr>
 </table>
-<p><b>Compute setup.</b> Heavy runs execute on two 32-core EC2 boxes. The local machine only edits, merges (<code>merge6.py</code>) and validates.</p>
+<p><b>Who runs what.</b> There are two 32-core EC2 boxes. ccc1 runs the Rust beam on the worst large and enormous items, the CP-SAT LNS, and the chain runners. ccc2 runs a Rust loop over the 60 longest items (new seeds every pass), a run on the large items ranked 60&ndash;100, and an experimental beam with a chord-fill bonus. The local machine only harvests, merges and validates.</p>
+<p><b>Why Rust.</b> The tooling study measured the Rust simulator at 37&times; Python and the combo evaluation at 150&ndash;190&times;. The search is compute-bound (W 25 &rarr; 1600 gave &minus;15% lines on a sample), so speed is score.</p>
+
+<h3>7.12 Score history <span class="tag">scored = medium + large + enormous</span></h3>
+<p>29042 (baseline) &rarr; 28624 (frames) &rarr; 27029 (portfolio cycles) &rarr; 24386 (accumulation) &rarr; 21450 (lookahead greedy) &rarr; 17931 (numpy beam) &rarr; 16874 (exact chain on large) &rarr; 15621 (Rust beam on large) &rarr; 15062 (16:07 UTC) &rarr; 15015 (16:13) &rarr; <b>14965</b> (16:22 UTC: medium 5969, large 4754, enormous 4242). The leader was at 14600.</p>
+<p class="note">Dead ends: A*/IDA* (branching 1000&ndash;2000, exact only for builds of &le; 3 ticks), sculpture (sweep then carve: scattered halo holes need a routing planner), simulated annealing (plateaus on good programs), collinear line sweeps (fail on holey shapes). Not tried yet: a chord-cover constructor that picks cheap chords from all 3 families. See <code>RESEARCH.md</code>.</p>
 </main>
 </body>
 </html>
