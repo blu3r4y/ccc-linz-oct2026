@@ -7,8 +7,9 @@ from .contest import solve
 from .utils import infer_current_level, infer_quests_for_level
 
 
-def load(lines: list[str]) -> dict:
-    return dict(lines=lines)
+def load(lines: list[str]) -> dict[str, list[int]]:
+    n = int(lines[0])
+    return dict(radii=[int(x) for x in lines[1 : n + 1]])
 
 
 if __name__ == "__main__":

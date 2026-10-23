@@ -4,6 +4,10 @@ My solutions for the [43rd Classic Cloudflight Coding Contest](https://codingcon
 
 :goat: :goat: :goat:
 
+## Challenges
+
+- :heavy_check_mark: **[Level 1](data/level-1.pdf)** - [Solution](/../level1/ccc/contest.py)
+
 ## Requirements
 
 ### Python >= 3.14

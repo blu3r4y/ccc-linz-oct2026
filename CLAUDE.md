@@ -4,31 +4,47 @@ Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org).
 
 ## Contest format
 
-- Levels 1..N unlock one after another. Each level has a spec PDF plus inputs `levelN_0.in` (example, comes with its `.out`) and `levelN_1.in`, `levelN_2.in`, ... (the real ones, uploaded for scoring).
-- The user drops everything into `data/`: `data/Level N.pdf`, `data/levelN_M.in`, `data/levelN_0.out`. Read the PDF for the spec.
+- Levels 1..N unlock one after another. Each level has a spec PDF, an example input with its expected output, and the real inputs, which get uploaded for scoring.
+- The user drops everything into `data/`. **This contest's naming** (unlike the `levelN_M.in` of past contests): `data/level-N.pdf`, `data/in_level-N_M-<name>.txt` (`0-example`, `1-small`, `2-large`, ...), and `data/out_level-N_0-example.txt`. Write outputs next to the inputs as `out_level-N_M-<name>.txt`. Read the PDF for the spec.
 - Later levels usually extend earlier ones, so evolve the code in place rather than starting over.
 - The contest also asks for the source code as a zip: `git archive --format zip -o code.zip HEAD`.
 
 ## Code layout
 
-- `ccc/__main__.py`: `load(lines) -> dict` parses an input file. Runs the **highest level found in `data/`** across all its quests and writes `data/levelN_M.out` (this overwrites the example `levelN_0.out`, so check it with `git diff data/` before trusting it).
-- `ccc/contest.py`: `solve(data) -> str` is the solution.
-- `ccc/utils.py`: infers the level and quests from the filenames.
-- Tests: `ccc/*_test.py` (pytest, configured in VS Code).
+- `ccc/__main__.py`: `load(lines) -> dict` parses an input file (level 1: `{"radii": [...]}`). The user wants its main loop **left as is**. That loop still expects `levelN_M.in` (and so does `ccc/utils.py`), so `python -m ccc` finds nothing for this contest's files. Generate the outputs with the one-off command below instead.
+- `ccc/contest.py`: `solve(data) -> str` is the solution. Boards are joined with `"
+
+"`, with no trailing newline.
+- `ccc/utils.py`: infers the level and quests from `levelN_M.in` filenames (doesn't match this contest's naming).
+- Tests: `ccc/contest_test.py` checks `solve(load(example input))` against `out_level-N_0-example.txt`. Add one test per level.
 - `ccc/scratchpad.ipynb`: notebook for exploring.
 
 ## Commands
 
 ```sh
 uv sync                      # Python 3.14, deps: numpy scipy networkx funcy loguru matplotlib
-uv run python -m ccc         # solve the current level
-uv run pytest ccc            # tests
+uv run --with pytest pytest ccc -q   # tests (pytest is not a project dep)
 uv run ruff format && uv run ruff check --select I --fix
 ```
 
+Write the outputs for level N (skips the example so its expected output stays intact):
+
+```sh
+uv run python -c "
+from pathlib import Path
+from ccc.__main__ import load
+from ccc.contest import solve
+for f in Path('data').glob('in_level-N_*.txt'):
+    if 'example' not in f.name:
+        f.with_name(f.name.replace('in_', 'out_', 1)).write_text(solve(load(f.read_text().splitlines())))
+"
+```
+
+Write or edit Python files with the Write/Edit tools, not Python heredocs in Bash: on this Windows machine, `\n` escapes in a heredoc came out as literal newlines with CRLF.
+
 ## Git workflow
 
-- One commit per level ("Solve level N"), plus a tag `levelN` (the README links to `/../levelN/ccc/contest.py`). Also tick the level off in the README.
+- One commit per level ("Solve level N"), plus a tag `levelN`. Commit the level's `data/` files too (PDF, inputs, outputs). Tick the level off in the README's `## Challenges` list: `- :heavy_check_mark: **[Level N](data/level-N.pdf)** - [Solution](/../levelN/ccc/contest.py)`.
 - The user commits themselves. Don't commit unless asked.
 - Remote: `git@github.com:blu3r4y/ccc-linz-oct2026.git`. Pushing needs the user's ssh-agent, so ask them to run `! git push --follow-tags`.
 - Reference from the last contest: `../ccc-linz-nov2025`.
