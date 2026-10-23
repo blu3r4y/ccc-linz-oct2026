@@ -4,7 +4,8 @@ from typing import Any
 
 Cell = tuple[int, int]  # (row, col) in the ASCII board, '-' gaps are left out
 Board = dict[Cell, str]
-Rule = Callable[[Any], Board]  # one parsed input item (see load) -> final board
+# one parsed input item (see load) -> final board, or a plain answer (e.g. a count)
+Rule = Callable[[Any], Board | int]
 
 # emitter digit -> (row, col) step, clockwise starting east
 DIRS = {
@@ -19,7 +20,10 @@ DIRS = {
 
 def solve(data: dict[str, list[Any]], level: int | None = None) -> str:
     rule = RULES[level or max(RULES)]  # default: the latest level
-    return "\n\n".join(render(rule(item)) for item in data["items"])
+    results = [rule(item) for item in data["items"]]
+    if all(isinstance(res, dict) for res in results):  # boards: blank line between
+        return "\n\n".join(render(b) for b in results)
+    return "\n".join(map(str, results))
 
 
 # --- board representation: the only code that touches raw coordinates ---
@@ -46,6 +50,11 @@ def ray(b: Board, start: Cell, digit: str) -> Iterator[Cell]:
     while b.get((y, x)) in ("O", "M"):
         yield y, x
         y, x = y + dy, x + dx
+
+
+def neighbours(cell: Cell) -> list[Cell]:
+    """the 6 adjacent cells (may lie off the board)"""
+    return [(cell[0] + dy, cell[1] + dx) for dy, dx in DIRS.values()]
 
 
 def hexagon(r: int) -> str:
@@ -115,13 +124,14 @@ def fire3(b: Board) -> Board:
 Program = tuple[int, list[list[str]]]  # radius, ticks of 6 commands (one per emitter)
 
 
-def run_ticks(b: Board, r: int, ticks: list[list[str]]) -> Board:
+def iter_ticks(b: Board, r: int, ticks: list[list[str]]) -> Iterator[Board]:
     """emitters start off on the corners of radius r and move along the border.
 
     Per tick, every emitter applies its command at once (F/B: one cell clockwise /
     counter-clockwise, T: toggle on/off, -: nothing), then the active ones fire
     with the create/destroy rule. Emitters stay off the board dict: several can
-    share one border cell.
+    share one border cell. Yields `b` (changed in place) after every tick, so the
+    caller may inspect or edit it between ticks.
     """
     border = ring(r)
     pos = [k * r for k in range(6)]  # index into border, emitter k = digit k+1
@@ -136,6 +146,13 @@ def run_ticks(b: Board, r: int, ticks: list[list[str]]) -> Board:
                 on[k] = not on[k]
         active = [(border[pos[k]], str(k + 1)) for k in range(6) if on[k]]
         create_or_destroy(b, hits(b, active))
+        yield b
+
+
+def run_ticks(b: Board, r: int, ticks: list[list[str]]) -> Board:
+    """run all ticks, return the final board"""
+    for b in iter_ticks(b, r, ticks):
+        pass
     return b
 
 
@@ -145,6 +162,27 @@ def run4(program: Program) -> Board:
     return run_ticks(parse(hexagon(r).splitlines()), r, ticks)
 
 
+Task = tuple[int, Board, list[list[str]]]  # radius, pattern board, ticks
+
+
+def run5(task: Task) -> int:
+    """level 5: count how often the pattern gets built and submitted.
+
+    After each tick, the pattern is complete when all its 'M' cells are 'M' and no
+    other 'M' touches them. Then it is submitted: its cells go back to 'O'.
+    """
+    r, pattern, ticks = task
+    want = {cell for cell, c in pattern.items() if c == "M"}
+    halo = {n for cell in want for n in neighbours(cell)} - want
+    count = 0
+    for b in iter_ticks(parse(hexagon(r).splitlines()), r, ticks):
+        if all(b[c] == "M" for c in want) and all(b.get(c) != "M" for c in halo):
+            for c in want:
+                b[c] = "O"
+            count += 1
+    return count
+
+
 # level -> rule; register each new level here (tests and ccc.run pick it up).
 # Keep old rules as they are so old levels stay solvable and tested.
-RULES: dict[int, Rule] = {2: fire2, 3: fire3, 4: run4}
+RULES: dict[int, Rule] = {2: fire2, 3: fire3, 4: run4, 5: run5}

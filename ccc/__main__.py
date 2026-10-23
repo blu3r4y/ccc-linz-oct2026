@@ -18,17 +18,26 @@ def load(lines: list[str]) -> dict[str, list[Any]]:
             i += 1
         header = lines[i].split()
         if len(header) == 3:  # L2+: "r rows cols" + board rows
-            rows = int(header[1])
-            items.append(parse(lines[i + 1 : i + 1 + rows]))
+            r, rows = int(header[0]), int(header[1])
+            board = parse(lines[i + 1 : i + 1 + rows])
             i += 1 + rows
-        elif len(header) == 1:  # L4: "r", tick count, ticks of 6 commands
-            r, n_ticks = int(header[0]), int(lines[i + 1])
-            ticks = [line.split() for line in lines[i + 2 : i + 2 + n_ticks]]
-            items.append((r, ticks))
-            i += 2 + n_ticks
+            if i < len(lines) and len(lines[i].split()) == 1:  # L5: + ticks
+                ticks, i = read_ticks(lines, i)
+                items.append((r, board, ticks))
+            else:
+                items.append(board)
+        elif len(header) == 1:  # L4: "r" + ticks
+            ticks, i = read_ticks(lines, i + 1)
+            items.append((int(header[0]), ticks))
         else:
             raise ValueError(f"unknown item header: {lines[i]!r}")
     return dict(items=items)
+
+
+def read_ticks(lines: list[str], i: int) -> tuple[list[list[str]], int]:
+    """a tick count at line i, then that many ticks of 6 commands; returns next i"""
+    n = int(lines[i])
+    return [line.split() for line in lines[i + 1 : i + 1 + n]], i + 1 + n
 
 
 if __name__ == "__main__":

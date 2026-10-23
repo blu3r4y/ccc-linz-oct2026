@@ -10,6 +10,7 @@ My solutions for the [43rd Classic Cloudflight Coding Contest](https://codingcon
 - :heavy_check_mark: **[Level 2](data/level-2.pdf)** - [Solution](/../level2/ccc/contest.py)
 - :heavy_check_mark: **[Level 3](data/level-3.pdf)** - [Solution](/../level3/ccc/contest.py)
 - :heavy_check_mark: **[Level 4](data/level-4.pdf)** - [Solution](/../level4/ccc/contest.py)
+- :heavy_check_mark: **[Level 5](data/level-5.pdf)** - [Solution](/../level5/ccc/contest.py)
 
 ## Requirements
 

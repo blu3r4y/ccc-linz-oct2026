@@ -3,7 +3,19 @@ from pathlib import Path
 import pytest
 
 from .__main__ import load
-from .contest import DIRS, RULES, fire3, hexagon, parse, ray, render, ring, run4, solve
+from .contest import (
+    DIRS,
+    RULES,
+    fire3,
+    hexagon,
+    parse,
+    ray,
+    render,
+    ring,
+    run4,
+    run5,
+    solve,
+)
 
 DATA = Path(__file__).parent.parent / "data"
 
@@ -160,3 +172,28 @@ def test_load_level4():
     items = load(read("in_level-4_0-example.txt").splitlines())["items"]
     assert [(r, len(ticks)) for r, ticks in items] == [(2, 3), (3, 6), (3, 6)]
     assert all(len(t) == 6 for _, ticks in items for t in ticks)
+
+
+def test_load_level5():
+    items = load(read("in_level-5_0-example.txt").splitlines())["items"]
+    shapes = [(r, len(ticks)) for r, _, ticks in items]
+    assert shapes == [(3, 7), (3, 6)]
+    assert [list(p.values()).count("M") for _, p, _ in items] == [5, 3]
+
+
+ROW = ["T", "-", "-", "T", "-", "-"]  # emitters 1 + 4: (2,2) (2,4) (2,6) get 2 hits
+IDLE = ["-"] * 6
+
+
+@pytest.mark.parametrize(
+    "want, ticks, expected",
+    [
+        ({(2, 4)}, [ROW], 0),  # its neighbours are 'M' too: not submitted
+        ({(2, 2), (2, 4), (2, 6)}, [ROW], 1),
+        ({(2, 2), (2, 4), (2, 6)}, [ROW, IDLE, IDLE], 3),  # rebuilt every tick
+        ({(2, 2), (2, 4), (2, 6)}, [], 0),
+    ],
+)
+def test_run5(want, ticks, expected):
+    pattern = small(*((c, "M") for c in want))
+    assert run5((2, pattern, ticks)) == expected
