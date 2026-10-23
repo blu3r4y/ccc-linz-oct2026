@@ -35,15 +35,17 @@ Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org).
 
 ```sh
 uv sync                      # Python 3.14, deps: numpy scipy networkx funcy loguru matplotlib
-uv run --with pytest pytest ccc -q   # tests (pytest is not a project dep)
+uv run pytest ccc -q         # tests
 uv run ruff format && uv run ruff check --select I --fix
 ```
 
-Write the outputs for level N (it checks the example first):
+Write the outputs for level N (it checks the example first). The optional filter keeps only inputs whose name contains it (the example always runs), and each file's timing is printed:
 
 ```sh
-uv run python -m ccc.run [N]
+uv run python -m ccc.run [N] [filter]   # e.g. uv run python -m ccc.run 6 small
 ```
+
+When trying a new solver, wrap it in `timeout` so a slow input can't hang the run: `timeout 300 uv run python -m ccc.run 6`.
 
 Write or edit Python files with the Write/Edit tools, not Python heredocs in Bash: on this Windows machine, `\n` escapes in a heredoc came out as literal newlines with CRLF.
 
