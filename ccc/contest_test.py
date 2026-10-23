@@ -3,10 +3,18 @@ from pathlib import Path
 import pytest
 
 from .__main__ import load
-from .contest import DIRS, board, parse, ray, render, solve
+from .contest import DIRS, fire2, fire3, hexagon, parse, ray, render, solve
 
 DATA = Path(__file__).parent.parent / "data"
-LEVEL2 = sorted(p.name for p in DATA.glob("in_level-2_*.txt"))
+
+# level -> rule; add each new level here, its example is then checked automatically
+RULES = {2: fire2, 3: fire3}
+INPUTS = sorted(p.name for lvl in RULES for p in DATA.glob(f"in_level-{lvl}_*.txt"))
+OUTPUTS = sorted(  # every output that exists, uploaded and confirmed (or the example)
+    (lvl, p.name.replace("out_", "in_", 1))
+    for lvl in RULES
+    for p in DATA.glob(f"out_level-{lvl}_*.txt")
+)
 
 
 def read(name: str) -> str:
@@ -14,6 +22,7 @@ def read(name: str) -> str:
 
 
 def blocks(name: str) -> list[list[str]]:
+    """the raw rows of each board in an input file"""
     lines = read(name).splitlines()
     out, i = [], 1
     for _ in range(int(lines[0])):
@@ -26,40 +35,38 @@ def blocks(name: str) -> list[list[str]]:
 
 
 def small(*cells) -> dict:
-    """board(2) with (cell, char) overrides"""
-    return parse(board(2).splitlines()) | dict(cells)
+    """hexagon(2) with (cell, char) overrides"""
+    return parse(hexagon(2).splitlines()) | dict(cells)
 
 
 def test_level1_example():
     radii = [int(x) for x in read("in_level-1_0-example.txt").split()[1:]]
     expected = read("out_level-1_0-example.txt").strip()
-    assert "\n\n".join(board(r) for r in radii) == expected
+    assert "\n\n".join(hexagon(r) for r in radii) == expected
 
 
-def test_level2_example():
-    data = load(read("in_level-2_0-example.txt").splitlines())
-    assert solve(data) == read("out_level-2_0-example.txt").strip()
+@pytest.mark.parametrize("level, name", OUTPUTS)
+def test_outputs(level: int, name: str):
+    data = load(read(name).splitlines())
+    expected = read(name.replace("in_", "out_", 1)).strip()
+    assert solve(data, RULES[level]) == expected
 
 
-@pytest.mark.parametrize("name", LEVEL2)
-def test_parse_render_roundtrip(name: str):
-    for rows in blocks(name):
-        assert render(parse(rows)) == "\n".join(rows)
-
-
-@pytest.mark.parametrize("name", LEVEL2)
-def test_load_level2(name: str):
+@pytest.mark.parametrize("name", INPUTS)
+def test_load(name: str):
     boards = load(read(name).splitlines())["boards"]
     assert len(boards) == int(read(name).split()[0]) == len(blocks(name))
-    for b in boards:
-        assert sum(c in DIRS for c in b.values()) == 1
+    for rows, b in zip(blocks(name), boards):
+        assert render(b) == "\n".join(rows)
+        emitters = [c for c in b.values() if c in DIRS]
+        assert emitters and len(set(emitters)) == len(emitters)
 
 
-# board(2):  --*-*-*--
-#            -*-O-O-*-
-#            *-O-O-O-*
-#            -*-O-O-*-
-#            --*-*-*--
+# hexagon(2):  --*-*-*--
+#              -*-O-O-*-
+#              *-O-O-O-*
+#              -*-O-O-*-
+#              --*-*-*--
 @pytest.mark.parametrize(
     "start, digit, expected",
     [
@@ -90,3 +97,14 @@ def test_ray_outward_is_empty(start, digit):
 )
 def test_ray_stops_at_star_and_emitter(block, expected):
     assert list(ray(small(((2, 0), "1"), block), (2, 0), "1")) == expected
+
+
+def test_fire3_rules():
+    # beams on hexagon(2): 1 -> (2,2) (2,4) (2,6), 2 -> (1,3) (2,4) (3,5),
+    # 4 -> (3,5) (3,3), 6 -> (3,3) (2,4) (1,5)
+    emitters = [((2, 0), "1"), ((0, 2), "2"), ((3, 7), "4"), ((4, 2), "6")]
+    b = fire3(small(*emitters, ((2, 4), "M"), ((2, 6), "M")))
+    assert b[(2, 4)] == "O"  # 3 hits destroy
+    assert b[(3, 5)] == b[(3, 3)] == "M"  # 2 hits create
+    assert b[(2, 2)] == b[(1, 3)] == "O"  # 1 hit, unchanged
+    assert b[(2, 6)] == "M"  # 1 hit, existing matter stays

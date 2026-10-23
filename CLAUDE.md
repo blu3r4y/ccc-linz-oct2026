@@ -12,20 +12,21 @@ Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org).
 ## Code layout
 
 - `ccc/__main__.py`: `load(lines) -> dict` parses an input file into `{"boards": [Board, ...]}`: a count line, then per board an `r rows cols` header and its rows, with blank lines between boards. The user wants its main loop **left as is**. That loop still expects `levelN_M.in` (and so does `ccc/utils.py`), so `python -m ccc` finds nothing for this contest's files. Generate the outputs with the one-off command below instead.
-- `ccc/contest.py`: `solve(data) -> str` is the solution. Boards are joined with `"\n\n"`, with no trailing newline.
+- `ccc/contest.py`: `solve(data, rule=<current level>) -> str` is the solution. It applies one per-level rule `Board -> Board` to each board, then joins the boards with `"\n\n"` and no trailing newline.
+  - Old levels stay solvable: keep each level's rule (`fire2`, `fire3`, ...) and add a new `fireN`, rather than editing the old one. Then point `solve`'s default at the new rule.
   - `Board = dict[(row, col), char]`, keyed by ASCII position with the `-` gaps left out ("doubled-width" coordinates; chosen over axial, numpy, or the raw grid).
-  - `parse` / `render` convert to and from the ASCII rows. `ray(board, start, digit)` yields the cells a beam crosses until the border.
+  - `parse` / `render` convert to and from the ASCII rows. `ray(board, start, digit)` yields the cells a beam crosses (through `O`/`M`) until the border. `beam_hits(board)` counts the beams over each cell for all emitters together. `hexagon(r)` draws an empty board (L1).
   - `DIRS`: emitter digit -> step, `1=(0,2)` →, `2=(1,1)` ↘, `3=(1,-1)` ↙, `4=(0,-2)` ←, `5=(-1,-1)` ↖, `6=(-1,1)` ↗. Clockwise, so turning is index arithmetic mod 6.
   - Only `parse`, `render`, `DIRS` and `ray` touch raw coordinates. Everything else treats cells as opaque keys (`cell in board`, a `Counter`), so a switch to axial coordinates only changes those four.
 - `ccc/utils.py`: infers the level and quests from `levelN_M.in` filenames (doesn't match this contest's naming).
-- Tests: `ccc/contest_test.py` checks `solve(load(example input))` against `out_level-N_0-example.txt`. Add one test per level.
+- Tests: `ccc/contest_test.py`. Register each new level in `RULES = {level: rule}`. `test_outputs` then checks every `out_level-N_*.txt` that exists (the example and the confirmed uploads) against `solve(load(in), RULES[N])`, so old levels can't silently regress. `test_load` round-trips every input board. Add a small hand-traced rule test per level on `hexagon(2)` (the `small()` helper).
 - `ccc/scratchpad.ipynb`: notebook for exploring.
 
 ## Levels so far
 
 - L1: draw a hexagon board of radius r.
 - L2: one emitter, its beam turns `O` into `M` until the border.
-- L3 (in progress): multiple emitters. A cell hit by 2 beams becomes `M`, 3+ hits destroy it, 0-1 hits leave it unchanged. The output may keep the emitter digits.
+- L3: multiple emitters. A cell hit by 2 beams becomes `M`, 3+ hits destroy it, 0-1 hits leave it unchanged. The output may keep the emitter digits.
 
 ## Commands
 
