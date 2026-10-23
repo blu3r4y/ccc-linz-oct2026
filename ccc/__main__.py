@@ -3,13 +3,21 @@ from pprint import pprint
 
 from loguru import logger as log
 
-from .contest import solve
+from .contest import Board, parse, solve
 from .utils import infer_current_level, infer_quests_for_level
 
 
-def load(lines: list[str]) -> dict[str, list[int]]:
+def load(lines: list[str]) -> dict[str, list[Board]]:
     n = int(lines[0])
-    return dict(radii=[int(x) for x in lines[1 : n + 1]])
+    boards: list[Board] = []
+    i = 1
+    for _ in range(n):
+        while not lines[i].strip():
+            i += 1
+        _r, rows, _cols = map(int, lines[i].split())
+        boards.append(parse(lines[i + 1 : i + 1 + rows]))
+        i += 1 + rows
+    return dict(boards=boards)
 
 
 if __name__ == "__main__":
