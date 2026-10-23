@@ -2,19 +2,28 @@ from pathlib import Path
 
 import pytest
 
+from . import contest
 from .__main__ import load
 from .contest import (
+    CHECKS,
     DIRS,
     RULES,
+    baseline6,
+    cycle_gap,
+    cycle_program,
     fire3,
+    frame6,
     hexagon,
     parse,
+    program6,
     ray,
     render,
     ring,
     run4,
     run5,
     solve,
+    submissions6,
+    valid6,
 )
 
 DATA = Path(__file__).parent.parent / "data"
@@ -26,6 +35,7 @@ BOARD_INPUTS = sorted(
 OUTPUTS = sorted(  # every output that exists, uploaded and confirmed (or the example)
     (lvl, p.name.replace("out_", "in_", 1))
     for lvl in RULES
+    if lvl not in CHECKS  # those have many valid answers: see test_valid_outputs
     for p in DATA.glob(f"out_level-{lvl}_*.txt")
 )
 
@@ -197,3 +207,72 @@ IDLE = ["-"] * 6
 def test_run5(want, ticks, expected):
     pattern = small(*((c, "M") for c in want))
     assert run5((2, pattern, ticks)) == expected
+
+
+def test_load_level6():
+    items = load(read("in_level-6_0-example.txt").splitlines())["items"]
+    assert [(r, count) for r, _, count in items] == [(3, 3), (3, 1), (4, 4)]
+    assert [list(p.values()).count("M") for _, p, _ in items] == [5, 16, 8]
+
+
+def programs(text: str) -> list[list[list[str]]]:
+    return [[t.split() for t in p.splitlines()] for p in text.strip().split("\n\n")]
+
+
+VALID_OUTPUTS = sorted(p.name for p in DATA.glob("out_level-6_*.txt"))
+
+
+@pytest.mark.parametrize("name", VALID_OUTPUTS)
+def test_valid_outputs(name: str):
+    items = load(read(name.replace("out_", "in_", 1)).splitlines())["items"]
+    progs = programs(read(name))
+    assert len(progs) == len(items)
+    assert all(valid6(item, p) for item, p in zip(items, progs))
+
+
+def test_program6_example(monkeypatch):
+    monkeypatch.setattr(contest, "BUDGET", 0.05)
+    items = load(read("in_level-6_0-example.txt").splitlines())["items"]
+    progs = [program6(item) for item in items]
+    assert all(valid6(item, p) for item, p in zip(items, progs))
+    assert sum(map(len, progs)) < 446  # the reference's naive solution
+
+
+def test_frame6_repeats_one_tick():
+    # emitters 1 → and 4 ← share the middle row: on at home, it is built every
+    # tick, so k = 5 takes setup (1 toggle tick) + 4 idle ticks
+    order = (2, small(*(((2, x), "M") for x in (2, 4, 6))), 5)
+    assert cycle_program([(0, None, None, 0, None, None)], 5) == [ROW] + [IDLE] * 4
+    prog = frame6(order)
+    assert prog is not None and len(prog) == 1 + 4 and valid6(order, prog)
+
+
+def test_cycle_gap():
+    stay = (1, None, None, None, None, None)
+    assert cycle_gap([(0,) + stay[1:], stay]) == 1  # on in both, moves 1 cell
+    assert cycle_gap([(-1,) + stay[1:], stay]) == 2  # moves 2 cells
+    off = (None,) * 6
+    assert cycle_gap([(-1,) + stay[1:], off, stay]) == 2  # off, move 2, on: 4 ticks
+
+
+def test_submissions6_matches_run5():
+    items = load(read("in_level-6_0-example.txt").splitlines())["items"]
+    for order in items:
+        prog = baseline6(order)
+        r, pattern, count = order
+        subs = submissions6(order, prog)
+        assert len(subs) == run5((r, pattern, prog)) == count
+
+
+@pytest.mark.parametrize("name", ["in_level-6_0-example.txt", "in_level-6_1-small.txt"])
+def test_program6_never_worse(name: str, monkeypatch):
+    monkeypatch.setattr(contest, "BUDGET", 0.05)  # keep the searches short
+    for order in load(read(name).splitlines())["items"]:
+        prog = program6(order)
+        assert valid6(order, prog) and len(prog) <= len(baseline6(order))
+
+
+def test_program6_center():
+    order = (2, small(((2, 4), "M")), 3)
+    assert program6(order) == [list("TT----"), ["-"] * 6, ["-"] * 6]
+    assert valid6(order, program6(order))

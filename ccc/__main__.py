@@ -26,6 +26,10 @@ def load(lines: list[str]) -> dict[str, list[Any]]:
                 items.append((r, board, ticks))
             else:
                 items.append(board)
+        elif len(header) == 4:  # L6: "r rows cols count" + pattern rows
+            r, rows, _, count = map(int, header)
+            items.append((r, parse(lines[i + 1 : i + 1 + rows]), count))
+            i += 1 + rows
         elif len(header) == 1:  # L4: "r" + ticks
             ticks, i = read_ticks(lines, i + 1)
             items.append((int(header[0]), ticks))

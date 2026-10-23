@@ -1,3 +1,6 @@
+# keys
+*.pem
+
 # IDEs
 .vscode/
 !.vscode/launch.json
