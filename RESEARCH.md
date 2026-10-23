@@ -65,6 +65,15 @@ The leader was at 14725 when the contest was closing.
 | 17 | Theory: line space / decomposition | `<SP>\l6_theory` | see below | ~90% of cells are built in point mode; chord mode unused |
 | 18 | Tooling study (CP-SAT/MaxSAT/MILP, Rust speed) | `ccc2:~/scratch/l6_research` | Rust is 37× (sim) and 150–190× (combos) faster than Python | CP-SAT for medium plus polishing; Rust for search |
 
+## numpy beam (`ccc2:~/scratch/l6_big`, final report)
+
+- **State:** emitter offsets/on-flags, plus matter on zone cells only (uint64 words), plus submissions done. Every state expands to all 4096 commands (2×64 half-combos).
+- **Score:** `done*BIG + built − 1000·bad_halo + mu·pot`, where pot rewards reachable chords rich in unbuilt cells (beta, gamma). Optional rescoring with nu (lower bound on remaining ticks) and delta (1-step lookahead).
+- **The potential is essential:** mu=0 is about 2.5× worse. nu/delta each give about −4%.
+- The per-item min over 9 configs is 6–10% better than the best single config.
+- **Weakness:** on blobs the last ~10 cells come at about 1 per tick (10–20% of ticks), and chord fills are almost never chosen.
+- Totals: large 9773 → 4802, enormous 7790 → 4332 (standalone merged).
+
 ## Diagnostics (on the best set at about 15:15–15:40 UTC)
 
 - Ticks: about 83–91% build, about 4% move-only after the beam, 0% idle. Rebuild ratio about 1.00.
