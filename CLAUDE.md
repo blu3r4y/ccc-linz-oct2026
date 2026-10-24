@@ -2,7 +2,7 @@
 
 Python solutions for the Classic Cloudflight Coding Contest (codingcontest.org). Time-boxed contest: speed over polish.
 
-**Level 6 is in progress as an optimisation effort:** read `SESSION.md` first (state, first steps, live remote runs, rules), then `RESEARCH.md` (every approach tried and what it bought).
+**Level 6 was an optimisation effort:** `RESEARCH.md` logs every approach tried and what it bought.
 
 ## Contest format
 

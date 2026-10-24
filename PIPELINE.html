@@ -108,7 +108,7 @@ th { color: var(--muted); font-weight: 600; }
 
 <section id="p3">
   <div class="head"><h2>3 · The harvest loop</h2><span class="badge ok">every 5 min near the end</span></div>
-  <p class="note">Every run writes full candidate files (one program per item) into <code>~/scratch/l6_*/out/</code>. <code>harvest6.sh</code> pulls them from both boxes, <code>merge6</code> keeps the shortest program per item that passes <code>valid6</code> (the current best set is always a candidate, so it only ever improves), and the new <code>best6</code> is pushed back. The runs take it as their base for the next pass.</p>
+  <p class="note">Every run writes full candidate files (one program per item) into <code>~/scratch/l6_*/out/</code>. A pull step copies them from both boxes, <code>merge6</code> keeps the shortest program per item that passes <code>valid6</code> (the current best set is always a candidate, so it only ever improves), and the new <code>best6</code> is pushed back. The runs take it as their base for the next pass.</p>
   <svg id="p3svg" viewBox="0 0 640 300" role="img" aria-label="harvest loop between the boxes and the local best set"></svg>
   <table>
     <thead><tr><th>box</th><th>run</th><th>what it does</th></tr></thead>
@@ -301,7 +301,7 @@ function drawLoop() {
   box(10, 224, 140, 30, "Rust beam medium", null, true);
   box(10, 260, 140, 30, "chord-bonus beam", null);
   box(200, 120, 110, 50, "out/ files", "~/scratch/l6_*/out");
-  box(350, 120, 110, 50, "harvest6.sh", "pull both boxes");
+  box(350, 120, 110, 50, "harvest", "pull both boxes");
   box(500, 120, 120, 50, "merge6", "shortest valid6 / item");
   box(500, 230, 120, 50, "best6", "upload this", true);
   for (const y of [43, 87, 131, 199, 239, 275]) el("path", { d: `M150 ${y} C 180 ${y}, 175 145, 198 145`, class: "arrow" }, svg);

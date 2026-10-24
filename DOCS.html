@@ -308,7 +308,7 @@ submit          #1    #2    #3</code></pre></div></div>
 <pre>  Rust beam  ──►  exact chain (CP-SAT)  ──►  windowed LNS (CP-SAT)
   (builds)        (rebuilds per copy)        (shaves 2–11 lines)
        ▲                                          │
-       └──── best6  ◄── merge6 (valid6) ◄── harvest6.sh (both boxes)</pre>
+       └──── best6  ◄── merge6 (valid6) ◄── pull (both boxes)</pre>
 <table>
   <tr><th>stage</th><th>what it does</th></tr>
   <tr><td><b>Rust beam</b><br><span class="note">constructor, <code>l6_rust</code></span></td><td>
@@ -320,7 +320,7 @@ submit          #1    #2    #3</code></pre></div></div>
     </ul></td></tr>
   <tr><td><b>Exact chain</b><br><span class="note">polisher, <code>l6_ilp</code></span></td><td>A time-expanded CP-SAT model of the L5 rules on the zone cells only. Each copy after the first is re-solved as the <b>shortest rebuild from the emitter state the previous copy left</b>, which works because the zone is clean after every submission. The same model gives the lower bound <code>Tfirst* + (k&minus;1)&middot;Pmin*</code>.</td></tr>
   <tr><td><b>Windowed LNS</b><br><span class="note">polisher, <code>l6_cpsat</code></span></td><td>It takes a best program and re-solves sliding windows of 16 and 24 ticks with CP-SAT, hinted from the current program. Each window starts from the exact (emitter states, zone matter) at its first tick and must end in the same state at a variable tick, so a shorter window splices straight in. About 120 s per item pays off; 30 s does not.</td></tr>
-  <tr><td><b>merge6 + harvest</b><br><span class="note">local</span></td><td><code>harvest6.sh</code> pulls every <code>~/scratch/l6_*/out</code> from both boxes. <code>merge6.py</code> keeps the shortest <code>valid6</code> program per item, with best6 always a candidate. The new best6 goes back to both boxes, and looping runs start their next pass from it.</td></tr>
+  <tr><td><b>merge6 + harvest</b><br><span class="note">local</span></td><td>A pull step copies every <code>~/scratch/l6_*/out</code> from both boxes. <code>merge6.py</code> keeps the shortest <code>valid6</code> program per item, with best6 always a candidate. The new best6 goes back to both boxes, and looping runs start their next pass from it.</td></tr>
 </table>
 <p><b>Who runs what.</b> There are two 32-core EC2 boxes. ccc1 runs the Rust beam on the worst large and enormous items, the CP-SAT LNS, and the chain runners. ccc2 runs a Rust loop over the 60 longest items (new seeds every pass), a run on the large items ranked 60&ndash;100, and an experimental beam with a chord-fill bonus. The local machine only harvests, merges and validates.</p>
 <p><b>Why Rust.</b> The tooling study measured the Rust simulator at 37&times; Python and the combo evaluation at 150&ndash;190&times;. The search is compute-bound (W 25 &rarr; 1600 gave &minus;15% lines on a sample), so speed is score.</p>

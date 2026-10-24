@@ -1,9 +1,9 @@
 # Level 6 research log
 
-Every approach tried for level 6, with what it bought and where its code lives. `SESSION.md` has the operational handoff (state, infrastructure, rules). On the remote boxes, each folder's own `README.md` (if present) has exact run commands.
+Every approach tried for level 6, with what it bought and where its code lives. On the remote boxes, each folder's own `README.md` (if present) has exact run commands.
 
 Locations:
-- `<SP>` = `C:\Users\mario\AppData\Local\Temp\claude\C--data-Dropbox-git-ccc-linz-oct2026\4eb86937-4366-4a15-b2ec-7ea93c8b2bfd\scratchpad`, local copies of the prototypes.
+- `<SP>` = the agent session's local scratchpad (not in the repo), which held the prototypes.
 - `ccc1`/`ccc2` = the EC2 boxes (persisted). Each agent's folder is `~/scratch/l6_<name>`.
 
 ## The problem in one paragraph
@@ -107,4 +107,4 @@ The leader was at 14600 at 16:07 UTC.
 
 ## Tools
 
-- `merge6.py`, `peritem6.py`, `harvest6.sh` and `remote.sh` live in `tools/l6/` (copied into the repo) and in `<SP>`. See `SESSION.md` for usage.
+- `merge6.py` and `peritem6.py` live in `tools/l6/` (copied into the repo). See `tools/l6/README.md` for usage.
