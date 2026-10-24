@@ -1,6 +1,6 @@
-# 43rd Classic Cloudflight Coding Contest
+# 42nd Classic Cloudflight Coding Contest
 
-My solutions for the [43rd Classic Cloudflight Coding Contest](https://codingcontest.org/) in October 2026, written in Python.
+My solutions for the [42nd Classic Cloudflight Coding Contest](https://codingcontest.org/) in October 2026, written in Python.
 
 :goat: :goat: :goat:
 
